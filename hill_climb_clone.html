@@ -1,0 +1,2847 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hill Climb Racing - النسخة الاحترافية الكاملة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            font-family: 'Cairo', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            box-sizing: border-box;
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #090d16;
+        }
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* أزرار HCR الكلاسيكية ذات الحواف البارزة */
+        .hcr-btn {
+            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.45), 0 10px 20px rgba(0,0,0,0.5);
+            position: relative;
+        }
+        .hcr-btn:active, .hcr-btn.pressed {
+            transform: translateY(5px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.45), 0 3px 6px rgba(0,0,0,0.5);
+        }
+
+        /* الدواسات المعدنية الواقعية */
+        .pedal-metallic {
+            width: 118px;
+            height: 162px;
+            border-radius: 22px;
+            border: 5px solid #1f2937;
+            background: linear-gradient(160deg, #6b7280 0%, #374151 50%, #1f2937 100%);
+            box-shadow: 0 12px 0 #0f172a, 0 18px 30px rgba(0,0,0,0.75), inset 0 2px 3px rgba(255,255,255,0.35);
+            position: relative;
+            transition: transform 0.07s ease, box-shadow 0.07s ease;
+            cursor: pointer;
+        }
+        .pedal-metallic.pressed {
+            transform: translateY(10px) scale(0.95);
+            box-shadow: 0 2px 0 #0f172a, 0 6px 12px rgba(0,0,0,0.8), inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .pedal-gas-ring {
+            border-color: #059669;
+            background: linear-gradient(160deg, #34d399 0%, #059669 45%, #064e3b 100%);
+        }
+        .pedal-brake-ring {
+            border-color: #dc2626;
+            background: linear-gradient(160deg, #f87171 0%, #dc2626 45%, #7f1d1d 100%);
+        }
+        .pedal-grip {
+            width: 72%;
+            height: 12px;
+            background: rgba(15, 23, 42, 0.65);
+            border-radius: 6px;
+            box-shadow: inset 0 2px 2px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        /* تحذير الوقود ونفاد البنزين */
+        @keyframes alarm-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.09); opacity: 0.45; }
+        }
+        .fuel-alarm {
+            animation: alarm-pulse 0.5s infinite ease-in-out;
+        }
+
+        /* تأثير الطابع الرسمي عند الخسارة */
+        @keyframes stamp-slam {
+            0% { transform: scale(3.2) rotate(-18deg); opacity: 0; }
+            70% { transform: scale(0.92) rotate(-8deg); opacity: 1; }
+            100% { transform: scale(1) rotate(-10deg); opacity: 1; }
+        }
+        .stamp-badge {
+            animation: stamp-slam 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        /* تخصيص شريط التمرير */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); border-radius: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(245, 158, 11, 0.6); border-radius: 8px; }
+    </style>
+</head>
+<body class="relative select-none overflow-hidden">
+
+    <!-- لوحة الرسم الرئيسية للعبة -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- ==========================================
+         1. واجهة اللعب العلوية والسفلية (IN-GAME HUD)
+         ========================================== -->
+    <div id="hud" class="fixed inset-0 pointer-events-none hidden flex-col justify-between p-3 sm:p-5 z-10">
+        
+        <!-- الشريط العلوي -->
+        <div class="flex justify-between items-start w-full max-w-7xl mx-auto gap-2">
+            
+            <!-- اليمين: الوقود + العملات + الجواهر -->
+            <div class="flex flex-col gap-2 bg-slate-950/85 backdrop-blur-md p-3 rounded-2xl border-2 border-slate-700/90 pointer-events-auto shadow-2xl min-w-[215px] sm:min-w-[270px]">
+                <!-- شريط الوقود -->
+                <div class="flex items-center gap-2.5">
+                    <div id="fuelIconBox" class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white shadow-md border border-red-400">
+                        <i class="fas fa-gas-pump text-base"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between text-[11px] font-black text-slate-300 mb-0.5 px-1">
+                            <span>الوقود FUEL</span>
+                            <span id="fuelPercentText">100%</span>
+                        </div>
+                        <div class="w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-slate-600 p-0.5">
+                            <div id="fuelBarFill" class="h-full bg-gradient-to-l from-emerald-400 via-amber-400 to-red-500 rounded-full transition-all duration-75" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- العملات والماسات -->
+                <div class="flex items-center justify-between border-t border-slate-800 pt-2 px-1">
+                    <div class="flex items-center gap-1.5">
+                        <div class="w-6 h-6 rounded-full bg-amber-400 border-2 border-amber-200 flex items-center justify-center text-slate-950 font-black text-xs shadow">$</div>
+                        <span id="hudCoins" class="text-amber-300 font-black text-base sm:text-lg tracking-wide">0</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <i class="fas fa-gem text-cyan-400 text-base drop-shadow"></i>
+                        <span id="hudGems" class="text-cyan-300 font-black text-base sm:text-lg tracking-wide">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الوسط: المسافة، الهدف القادم، والحركات البهلوانية -->
+            <div class="flex flex-col items-center pointer-events-none">
+                <div class="bg-slate-950/85 backdrop-blur-md px-5 py-2 rounded-2xl border-2 border-amber-500/50 shadow-2xl text-center">
+                    <div class="text-[11px] font-bold text-slate-400">المسافة المقطوعة</div>
+                    <div class="text-2xl sm:text-3xl font-black text-white tracking-wider">
+                        <span id="hudDistance">0</span> <span class="text-sm text-amber-400">م</span>
+                    </div>
+                    <div class="text-[11px] font-bold text-emerald-400 border-t border-slate-800 mt-0.5 pt-0.5">
+                        المرحلة القادمة: <span id="hudTargetStage">400 م</span> | الأفضل: <span id="hudBestDistance">0 م</span>
+                    </div>
+                </div>
+
+                <!-- إشعارات المكافآت الفورية (Air Time / Flip / Neck Flip) -->
+                <div id="stuntFeed" class="mt-2 flex flex-col items-center gap-1"></div>
+            </div>
+
+            <!-- اليسار: زر الكاميرا وزر الإيقاف المؤقت -->
+            <div class="flex items-center gap-2.5 pointer-events-auto">
+                <button id="btnResetCarAlert" class="hidden hcr-btn bg-sky-500 hover:bg-sky-400 text-slate-950 font-black px-3 py-2.5 rounded-2xl border-2 border-sky-200 text-xs sm:text-sm items-center gap-1.5">
+                    <i class="fas fa-bolt"></i> دفعة تيربو (5 جواهر)
+                </button>
+                <button id="btnPauseGame" class="hcr-btn w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-xl flex items-center justify-center border-2 border-amber-200">
+                    <i class="fas fa-pause"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- تنبيه نفاد الوقود -->
+        <div id="lowFuelBanner" class="hidden self-center bg-red-600/95 text-white px-6 py-2 rounded-full font-black text-base sm:text-lg border-2 border-white shadow-2xl fuel-alarm items-center gap-2">
+            <i class="fas fa-triangle-exclamation text-yellow-300"></i> تحذير: الوقود على وشك النفاد!
+        </div>
+
+        <!-- الشريط السفلي: الدواسات على الأطراف + العدادات التناظرية في المنتصف -->
+        <div class="flex justify-between items-end w-full max-w-7xl mx-auto pb-1 sm:pb-2">
+            
+            <!-- دواسة الفرامل والموازنة الخلفية -->
+            <div class="pointer-events-auto flex flex-col items-center gap-1.5">
+                <div class="bg-slate-950/80 text-red-300 text-[11px] sm:text-xs font-black px-3 py-0.5 rounded-full border border-red-500/40">
+                    فرامل / رفع المقدمة ⟲
+                </div>
+                <div id="pedalBrake" class="pedal-metallic pedal-brake-ring flex flex-col items-center justify-between py-4">
+                    <div class="pedal-grip"></div>
+                    <div class="pedal-grip"></div>
+                    <div class="text-white font-black text-base tracking-widest drop-shadow">BRAKE</div>
+                    <div class="pedal-grip"></div>
+                    <div class="w-4 h-4 rounded-full bg-slate-900/70 border border-white/30"></div>
+                </div>
+            </div>
+
+            <!-- لوحة العدادات التناظرية المرسومة على Canvas مخصص (RPM & BOOST) -->
+            <div class="pointer-events-none flex flex-col items-center">
+                <canvas id="gaugesCanvas" width="300" height="125" class="w-[220px] sm:w-[300px] h-auto drop-shadow-2xl"></canvas>
+            </div>
+
+            <!-- دواسة البنزين والموازنة الأمامية -->
+            <div class="pointer-events-auto flex flex-col items-center gap-1.5">
+                <div class="bg-slate-950/80 text-emerald-300 text-[11px] sm:text-xs font-black px-3 py-0.5 rounded-full border border-emerald-500/40">
+                    بنزين / خفض المقدمة ⟳
+                </div>
+                <div id="pedalGas" class="pedal-metallic pedal-gas-ring flex flex-col items-center justify-between py-4">
+                    <div class="pedal-grip"></div>
+                    <div class="pedal-grip"></div>
+                    <div class="text-white font-black text-lg tracking-widest drop-shadow">GAS</div>
+                    <div class="pedal-grip"></div>
+                    <div class="w-4 h-4 rounded-full bg-slate-900/70 border border-white/30"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         2. الكراج والقائمة الرئيسية (GARAGE & MENU)
+         ========================================== -->
+    <div id="garageScreen" class="fixed inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-indigo-950 flex flex-col justify-between p-3 sm:p-5 z-20 overflow-y-auto">
+        
+        <!-- شريط العنوان والعملات العلوي -->
+        <div class="w-full max-w-7xl mx-auto bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 flex items-center justify-center text-white text-2xl sm:text-3xl shadow-lg border-2 border-amber-200">
+                    <i class="fas fa-truck-monster"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl sm:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-l from-amber-300 via-yellow-400 to-orange-500">
+                            متسلق التلال الخارق
+                        </h1>
+                        <span class="bg-amber-500/20 text-amber-300 border border-amber-400/40 text-[10px] font-black px-2 py-0.5 rounded-full">PRO EDITION</span>
+                    </div>
+                    <p class="text-xs text-slate-400">محاكاة فيزيائية كاملة (نوابض مستقلة، جسور متحركة، شقلبات، وترقيات حقيقية)</p>
+                </div>
+            </div>
+
+            <!-- الثروة وأزرار الصوت والمكافأة الفورية -->
+            <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                <div class="flex items-center gap-2 bg-slate-950 px-3.5 py-2 rounded-2xl border-2 border-amber-500/60 shadow-inner">
+                    <div class="w-6 h-6 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">$</div>
+                    <span id="menuCoins" class="text-white font-black text-base sm:text-xl">0</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-950 px-3.5 py-2 rounded-2xl border-2 border-cyan-500/60 shadow-inner">
+                    <i class="fas fa-gem text-cyan-400 text-base"></i>
+                    <span id="menuGems" class="text-white font-black text-base sm:text-xl">0</span>
+                </div>
+                <button id="btnFreeGift" class="hcr-btn bg-gradient-to-b from-emerald-500 to-emerald-700 hover:from-emerald-400 hover:to-emerald-600 text-white px-3.5 py-2 rounded-2xl font-black text-xs sm:text-sm border-2 border-emerald-300 flex items-center gap-1.5">
+                    <i class="fas fa-coins text-amber-300"></i> +15,000 مجاناً
+                </button>
+                <button id="btnSoundToggle" class="hcr-btn w-11 h-11 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center border-2 border-slate-600">
+                    <i id="soundIcon" class="fas fa-volume-high text-lg text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- التبويبات الثلاثة (1. المركبات، 2. العوالم والمابات، 3. ورشة التعديل) -->
+        <div class="w-full max-w-7xl mx-auto my-3 flex-1 flex flex-col justify-between gap-4">
+            
+            <!-- أزرار التبويب -->
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 bg-slate-900/80 p-2 rounded-2xl border border-slate-700">
+                <button data-tab="vehicles" class="garage-tab-btn py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-base flex items-center justify-center gap-2 transition bg-amber-500 text-slate-950 shadow-lg">
+                    <i class="fas fa-car-side"></i> <span>1. المركبات (8 سيارات)</span>
+                </button>
+                <button data-tab="stages" class="garage-tab-btn py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-base flex items-center justify-center gap-2 transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fas fa-map-location-dot"></i> <span>2. العوالم (5 مابات)</span>
+                </button>
+                <button data-tab="tune" class="garage-tab-btn py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-base flex items-center justify-center gap-2 transition bg-slate-800 text-slate-300 hover:bg-slate-700">
+                    <i class="fas fa-screwdriver-wrench"></i> <span>3. ورشة الترقية (TUNE)</span>
+                </button>
+            </div>
+
+            <!-- منطقة العرض الرئيسية داخل الكراج -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch flex-1">
+                
+                <!-- القسم الأيمن الثابت: منصة اختبار السيارة الفيزيائية الحية (5 أعمدة) -->
+                <div class="lg:col-span-5 bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-4 flex flex-col justify-between shadow-2xl">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span id="previewStageBadge" class="text-xs font-black bg-sky-500/20 text-sky-300 border border-sky-500/40 px-3 py-1 rounded-full">
+                                <i class="fas fa-mountain-sun ml-1"></i> الريف الأخضر
+                            </span>
+                            <span id="previewCarStatus" class="text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full">
+                                مملوكة وجاهزة
+                            </span>
+                        </div>
+
+                        <!-- منصة عرض السيارة مع اختبار المساعدات -->
+                        <div class="relative w-full h-52 sm:h-60 rounded-2xl overflow-hidden border-2 border-slate-700 bg-slate-950 shadow-inner">
+                            <canvas id="garagePreviewCanvas" class="w-full h-full block"></canvas>
+                            
+                            <!-- أزرار تقليب المركبات السريعة -->
+                            <button id="btnPrevVehicle" class="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/85 hover:bg-amber-400 text-white hover:text-slate-950 flex items-center justify-center border border-slate-500 transition shadow-lg">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button id="btnNextVehicle" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-slate-900/85 hover:bg-amber-400 text-white hover:text-slate-950 flex items-center justify-center border border-slate-500 transition shadow-lg">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+
+                            <!-- زر اختبار المساعدات في الكراج -->
+                            <button id="btnBounceTest" class="absolute top-2.5 left-2.5 bg-slate-900/85 hover:bg-sky-500 text-sky-300 hover:text-slate-950 text-[11px] font-black px-3 py-1.5 rounded-xl border border-sky-500/50 transition flex items-center gap-1">
+                                <i class="fas fa-arrows-up-down"></i> اختبر المساعدات
+                            </button>
+
+                            <div class="absolute bottom-2.5 right-3 left-3 flex justify-between items-end pointer-events-none">
+                                <div>
+                                    <div id="previewCarTitle" class="text-white font-black text-lg sm:text-xl drop-shadow">سيارة الجيب</div>
+                                    <div id="previewCarIdTag" class="text-[10px] font-mono text-amber-300/90">ID: hill_climber_mk1</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p id="previewCarDesc" class="text-xs text-slate-300 mt-3 leading-relaxed"></p>
+                    </div>
+
+                    <!-- مؤشرات الأداء الفيزيائية للسيارة المختارة -->
+                    <div class="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 space-y-2 mt-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-bold">قوة العزم والسرعة:</span>
+                            <div class="w-40 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div id="statSpeedBar" class="h-full bg-gradient-to-l from-amber-400 to-red-500 rounded-full" style="width: 60%;"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-bold">مرونة المساعدات:</span>
+                            <div class="w-40 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div id="statSuspBar" class="h-full bg-gradient-to-l from-sky-400 to-indigo-500 rounded-full" style="width: 65%;"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-bold">ثبات الإطارات والتماسك:</span>
+                            <div class="w-40 h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                                <div id="statGripBar" class="h-full bg-gradient-to-l from-emerald-400 to-green-600 rounded-full" style="width: 70%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- القسم الأيسر المتغير حسب التبويب المختار (7 أعمدة) -->
+                <div class="lg:col-span-7 bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-4 flex flex-col justify-between shadow-2xl">
+                    
+                    <!-- محتوى التبويب 1: قائمة المركبات الثمانية -->
+                    <div id="tabPanelVehicles" class="tab-panel grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-h-[360px] overflow-y-auto p-1"></div>
+
+                    <!-- محتوى التبويب 2: قائمة المابات والعوالم الخمسة -->
+                    <div id="tabPanelStages" class="tab-panel hidden grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto p-1"></div>
+
+                    <!-- محتوى التبويب 3: ورشة الترقيات الفيزيائية -->
+                    <div id="tabPanelTune" class="tab-panel hidden grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto p-1"></div>
+
+                    <!-- الشريط السفلي للكراج: زر بدء السباق أو شراء السيارة -->
+                    <div class="mt-4 pt-3 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <div class="text-xs text-slate-400 space-y-0.5">
+                            <div><i class="fas fa-gamepad text-amber-400 ml-1"></i> <b>التحكم:</b> الأسهم (يمين/يسار) أو (D / A) أو لمس الدواسات.</div>
+                            <div><i class="fas fa-bridge text-sky-400 ml-1"></i> <b>المابات:</b> تتضمن تلالاً متوازنة، جسوراً معلقة، ومنصات مراحل كل 400 متر!</div>
+                        </div>
+
+                        <button id="btnMainAction" class="hcr-btn w-full sm:w-auto min-w-[230px] bg-gradient-to-b from-emerald-400 via-emerald-500 to-green-700 text-slate-950 font-black text-xl py-3.5 px-8 rounded-2xl border-2 border-emerald-200 flex items-center justify-center gap-3">
+                            <i class="fas fa-flag-checkered text-2xl"></i>
+                            <span id="btnMainActionText">ابدأ السباق الآن!</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         3. نافذة الإيقاف المؤقت (PAUSE MODAL)
+         ========================================== -->
+    <div id="pauseModal" class="fixed inset-0 bg-black/80 backdrop-blur-md hidden items-center justify-center z-30 p-4">
+        <div class="bg-slate-900 border-2 border-slate-600 rounded-3xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-amber-400 text-2xl">
+                <i class="fas fa-pause"></i>
+            </div>
+            <h2 class="text-2xl font-black text-white mb-1">استراحة المتسلق</h2>
+            <p class="text-xs text-slate-400 mb-5">يمكنك إكمال السباق أو العودة لترقية سيارتك في الكراج</p>
+            <div class="flex flex-col gap-3">
+                <button id="btnResumeRace" class="hcr-btn bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black py-3 rounded-2xl border-2 border-emerald-200">
+                    <i class="fas fa-play ml-2"></i> متابعة السباق
+                </button>
+                <button id="btnRestartRacePause" class="hcr-btn bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-2xl border-2 border-amber-200">
+                    <i class="fas fa-rotate-right ml-2"></i> إعادة من البداية
+                </button>
+                <button id="btnBackToGaragePause" class="hcr-btn bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-2xl border-2 border-slate-500">
+                    <i class="fas fa-warehouse ml-2"></i> العودة إلى الكراج
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         4. شاشة انتهاء الجولة (GAME OVER REPORT)
+         ========================================== -->
+    <div id="gameOverModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-30 p-4">
+        <div class="bg-gradient-to-b from-slate-800 to-slate-950 border-2 border-amber-500/70 rounded-3xl p-6 max-w-md w-full text-center shadow-2xl relative overflow-hidden">
+            
+            <!-- ختم الخسارة الأحمر على طريقة Hill Climb Racing -->
+            <div id="gameOverStamp" class="stamp-badge inline-block bg-red-600/90 text-white font-black text-lg sm:text-xl px-5 py-1.5 rounded-xl border-4 border-white shadow-xl mb-3">
+                DRIVER DOWN!
+            </div>
+
+            <h2 id="goReasonTitle" class="text-2xl sm:text-3xl font-black text-white mb-1">انقلبت المركبة!</h2>
+            <p id="goReasonSub" class="text-xs sm:text-sm text-amber-300 mb-4">ارتطم رأس السائق، وازن المركبة بالدواسات أثناء القفز!</p>
+
+            <!-- بطاقة الإحصائيات التفصيلية -->
+            <div class="bg-slate-950/90 rounded-2xl p-4 mb-5 border border-slate-700 space-y-2.5 text-sm">
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>المسافة المقطوعة:</span>
+                    <span id="goDistVal" class="font-black text-white text-base">0 متر</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>أفضل رقم قياسي في الماب:</span>
+                    <span id="goBestVal" class="font-black text-amber-400 text-base">0 متر</span>
+                </div>
+                <div class="border-t border-slate-800 pt-2 flex justify-between items-center text-slate-300">
+                    <span>العملات الملتقطة:</span>
+                    <span id="goCoinsVal" class="font-black text-yellow-400 text-base">+0</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>مكافآت الطيران والشقلبات:</span>
+                    <span id="goStuntsVal" class="font-black text-sky-400 text-base">+0</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-300">
+                    <span>مكافآت المراحل المجتازة:</span>
+                    <span id="goStageBonusVal" class="font-black text-emerald-400 text-base">+0</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="btnGoGarage" class="hcr-btn flex-1 bg-slate-700 hover:bg-slate-600 text-white font-black py-3.5 rounded-2xl border-2 border-slate-500 flex items-center justify-center gap-2">
+                    <i class="fas fa-screwdriver-wrench text-amber-400"></i> الكراج والترقية
+                </button>
+                <button id="btnGoRetry" class="hcr-btn flex-1 bg-gradient-to-b from-emerald-400 to-green-600 hover:from-emerald-300 hover:to-green-500 text-slate-950 font-black py-3.5 rounded-2xl border-2 border-emerald-200 flex items-center justify-center gap-2">
+                    <i class="fas fa-rotate-right"></i> العب مجدداً
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /********************************************************************
+         * 1. محرك الصوت التوليدي المتقدم (Web Audio Synthesizer)
+         * يولّد أصوات المحرك المتغير، صمام التيربو، العملات، الوقود، والإنذار
+         ********************************************************************/
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.engineOsc = null;
+                this.subOsc = null;
+                this.engineGain = null;
+                this.running = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            startEngine() {
+                if (this.muted) return;
+                this.init();
+                if (this.running || !this.ctx) return;
+
+                try {
+                    const now = this.ctx.currentTime;
+                    this.engineOsc = this.ctx.createOscillator();
+                    this.subOsc = this.ctx.createOscillator();
+                    this.engineGain = this.ctx.createGain();
+                    const filter = this.ctx.createBiquadFilter();
+
+                    this.engineOsc.type = 'sawtooth';
+                    this.subOsc.type = 'triangle';
+                    this.engineOsc.frequency.setValueAtTime(42, now);
+                    this.subOsc.frequency.setValueAtTime(21, now);
+
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(260, now);
+
+                    this.engineGain.gain.setValueAtTime(0.055, now);
+
+                    this.engineOsc.connect(filter);
+                    this.subOsc.connect(filter);
+                    filter.connect(this.engineGain);
+                    this.engineGain.connect(this.ctx.destination);
+
+                    this.engineOsc.start();
+                    this.subOsc.start();
+                    this.running = true;
+                } catch (e) {}
+            }
+
+            updateEngine(rpmRatio, gasActive) {
+                if (!this.running || this.muted || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const freq = 38 + rpmRatio * 105 + (gasActive ? 16 : 0);
+                this.engineOsc.frequency.setTargetAtTime(freq, now, 0.04);
+                this.subOsc.frequency.setTargetAtTime(freq * 0.5, now, 0.04);
+                this.engineGain.gain.setTargetAtTime(gasActive ? 0.085 : 0.038, now, 0.06);
+            }
+
+            stopEngine() {
+                if (this.running) {
+                    try {
+                        this.engineOsc.stop();
+                        this.subOsc.stop();
+                        this.engineOsc.disconnect();
+                        this.subOsc.disconnect();
+                    } catch (e) {}
+                    this.running = false;
+                }
+            }
+
+            playCoin() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1046.5, now);
+                osc.frequency.setValueAtTime(1567.98, now + 0.065);
+                gain.gain.setValueAtTime(0.14, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.26);
+            }
+
+            playGem() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [1318.5, 1760, 2093].forEach((f, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + idx * 0.045);
+                    gain.gain.setValueAtTime(0.13, now + idx * 0.045);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.045 + 0.22);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.045);
+                    osc.stop(now + idx * 0.045 + 0.22);
+                });
+            }
+
+            playFuel() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(280, now);
+                osc.frequency.linearRampToValueAtTime(840, now + 0.24);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.28);
+            }
+
+            playUpgrade() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + i * 0.045);
+                    gain.gain.setValueAtTime(0.12, now + i * 0.045);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.045 + 0.18);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.045);
+                    osc.stop(now + i * 0.045 + 0.18);
+                });
+            }
+
+            playNeckCrack() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(165, now);
+                osc.frequency.exponentialRampToValueAtTime(32, now + 0.45);
+                gain.gain.setValueAtTime(0.28, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.45);
+            }
+        }
+
+        const sound = new SoundEngine();
+
+        /********************************************************************
+         * 2. قاعدة بيانات السيارات الـ 8 (مع الكات كات الضخمة والسيارات العادية)
+         ********************************************************************/
+        const VEHICLES = [
+            {
+                id: 'hill_climber_mk1',
+                name: 'الجيب الحمراء (Hill Climber)',
+                desc: 'المركبة الأيقونية الكلاسيكية في اللعبة، متوازنة ومرنة لتسلق التلال.',
+                bodyType: 'jeep',
+                price: 0,
+                color: '#ef4444',
+                secondaryColor: '#991b1b',
+                chassisWidth: 120,
+                chassisHeight: 35,
+                wheelPositions: [-44, 44],
+                wheelRadius: 24,
+                suspensionRest: 30,
+                baseTorque: 1.05,
+                baseMaxSpeed: 16.5,
+                baseStiffness: 0.24,
+                baseDamping: 0.29,
+                airControl: 1.05,
+                downforce: 0.01,
+                fuelCapacity: 100,
+                statSpeed: 55, statSusp: 65, statGrip: 65
+            },
+            {
+                id: 'street_sedan_gt90',
+                name: 'السيارة العادية (Sedan GT)',
+                desc: 'سيارة مدينة صالون بتصميم انسيابي، سريعة وممتازة على المنحدرات والطرق.',
+                bodyType: 'sedan',
+                price: 1200,
+                color: '#3b82f6',
+                secondaryColor: '#1d4ed8',
+                chassisWidth: 136,
+                chassisHeight: 30,
+                wheelPositions: [-47, 47],
+                wheelRadius: 22,
+                suspensionRest: 27,
+                baseTorque: 1.15,
+                baseMaxSpeed: 19.5,
+                baseStiffness: 0.26,
+                baseDamping: 0.30,
+                airControl: 1.1,
+                downforce: 0.025,
+                fuelCapacity: 112,
+                statSpeed: 72, statSusp: 60, statGrip: 74
+            },
+            {
+                id: 'motocross_dirt_250',
+                name: 'دراجة الموتوكروس (Motocross)',
+                desc: 'خفيفة ورشيقة للغاية في الهواء، مثالية لعمل الشقلبات المتتالية وحصد الذهب!',
+                bodyType: 'bike',
+                price: 2200,
+                color: '#eab308',
+                secondaryColor: '#a16207',
+                chassisWidth: 96,
+                chassisHeight: 26,
+                wheelPositions: [-38, 38],
+                wheelRadius: 22,
+                suspensionRest: 34,
+                baseTorque: 1.22,
+                baseMaxSpeed: 20.5,
+                baseStiffness: 0.22,
+                baseDamping: 0.26,
+                airControl: 1.65,
+                downforce: 0.005,
+                fuelCapacity: 95,
+                statSpeed: 78, statSusp: 78, statGrip: 62
+            },
+            {
+                id: 'dune_buggy_sandx',
+                name: 'باجي الكثبان (Dune Buggy)',
+                desc: 'قفص فولاذي خفيف مع مساعدات طويلة جداً تبتلع المطبات والحفر القوية.',
+                bodyType: 'buggy',
+                price: 3500,
+                color: '#f97316',
+                secondaryColor: '#c2410c',
+                chassisWidth: 128,
+                chassisHeight: 28,
+                wheelPositions: [-48, 48],
+                wheelRadius: 25,
+                suspensionRest: 36,
+                baseTorque: 1.30,
+                baseMaxSpeed: 21.0,
+                baseStiffness: 0.23,
+                baseDamping: 0.28,
+                airControl: 1.35,
+                downforce: 0.02,
+                fuelCapacity: 125,
+                statSpeed: 80, statSusp: 88, statGrip: 78
+            },
+            {
+                id: 'mega_katkat_6x6_beast',
+                name: 'الكات كات الضخمة (Mega 4x4/6x6)',
+                desc: 'سيارة كات كات عملاقة ومرتفعة بـ 3 محاور عجلات جبارة وسلة سقف، تسحق أصعب الجبال بلا توقف!',
+                bodyType: 'katkat',
+                price: 5000,
+                color: '#10b981',
+                secondaryColor: '#047857',
+                chassisWidth: 176,
+                chassisHeight: 48,
+                wheelPositions: [-64, 0, 64],
+                wheelRadius: 34,
+                suspensionRest: 40,
+                baseTorque: 1.55,
+                baseMaxSpeed: 21.5,
+                baseStiffness: 0.30,
+                baseDamping: 0.34,
+                airControl: 1.15,
+                downforce: 0.04,
+                fuelCapacity: 160,
+                statSpeed: 84, statSusp: 94, statGrip: 95
+            },
+            {
+                id: 'monster_crusher_v8',
+                name: 'الشاحنة المتوحشة (Monster Truck)',
+                desc: 'إطارات عملاقة ونظام تعليق هيدروليكي عالي يتخطى الحفر العميقة بسهولة.',
+                bodyType: 'monster',
+                price: 6800,
+                color: '#8b5cf6',
+                secondaryColor: '#5b21b6',
+                chassisWidth: 146,
+                chassisHeight: 42,
+                wheelPositions: [-54, 54],
+                wheelRadius: 38,
+                suspensionRest: 44,
+                baseTorque: 1.62,
+                baseMaxSpeed: 21.0,
+                baseStiffness: 0.29,
+                baseDamping: 0.33,
+                airControl: 1.25,
+                downforce: 0.03,
+                fuelCapacity: 145,
+                statSpeed: 82, statSusp: 96, statGrip: 90
+            },
+            {
+                id: 'super_diesel_4x4',
+                name: 'سوبر ديزل (Super Diesel 4x4)',
+                desc: 'شاحنة بيك أب ثقيلة بمحرك ديزل تيربو مزدوج وخزان وقود ضخم للمسافات البعيدة.',
+                bodyType: 'pickup',
+                price: 8500,
+                color: '#dc2626',
+                secondaryColor: '#7f1d1d',
+                chassisWidth: 158,
+                chassisHeight: 40,
+                wheelPositions: [-56, 56],
+                wheelRadius: 31,
+                suspensionRest: 38,
+                baseTorque: 1.68,
+                baseMaxSpeed: 23.0,
+                baseStiffness: 0.31,
+                baseDamping: 0.34,
+                airControl: 1.20,
+                downforce: 0.045,
+                fuelCapacity: 175,
+                statSpeed: 90, statSusp: 88, statGrip: 92
+            },
+            {
+                id: 'rally_hyper_aero_x',
+                name: 'سيارة الرالي الخارقة (Rally Aero X)',
+                desc: 'أسرع مركبة في اللعبة مزودة بقوة ضغط هوائي سفلية (Downforce) تبقِها ملتصقة بالأرض!',
+                bodyType: 'rally',
+                price: 12000,
+                color: '#ec4899',
+                secondaryColor: '#9d174d',
+                chassisWidth: 144,
+                chassisHeight: 30,
+                wheelPositions: [-50, 50],
+                wheelRadius: 25,
+                suspensionRest: 32,
+                baseTorque: 1.80,
+                baseMaxSpeed: 26.0,
+                baseStiffness: 0.34,
+                baseDamping: 0.36,
+                airControl: 1.40,
+                downforce: 0.09,
+                fuelCapacity: 165,
+                statSpeed: 100, statSusp: 86, statGrip: 98
+            }
+        ];
+
+        /********************************************************************
+         * 3. قاعدة بيانات المابات والعوالم الـ 5 (متوازنة ومدروسة التضاريس)
+         ********************************************************************/
+        const STAGES = [
+            {
+                id: 'countryside',
+                name: 'الريف الأخضر (Countryside)',
+                icon: 'fa-mountain-sun',
+                price: 0,
+                gravity: 0.42,
+                grip: 0.96,
+                roughness: 0.85,
+                bridgeChance: 0.35,
+                skyTop: '#0284c7',
+                skyBottom: '#bae6fd',
+                groundTop: '#22c55e',
+                groundSub: '#15803d',
+                groundDirt: '#78350f',
+                groundRock: '#451a03',
+                weather: 'none',
+                desc: 'تلال عشبية متوازنة وجسور خشبية معلقة، مثالية للانطلاق وجمع العملات.'
+            },
+            {
+                id: 'desert',
+                name: 'صحراء الكثبان (Desert Dunes)',
+                icon: 'fa-sun',
+                price: 0,
+                gravity: 0.43,
+                grip: 0.86,
+                roughness: 1.05,
+                bridgeChance: 0.25,
+                skyTop: '#c2410c',
+                skyBottom: '#fde68a',
+                groundTop: '#f59e0b',
+                groundSub: '#d97706',
+                groundDirt: '#92400e',
+                groundRock: '#571c03',
+                weather: 'dust',
+                desc: 'كثبان رملية ناعمة ومنحدرات طويلة تتطلب محركاً قوياً وعزم دوران عالٍ.'
+            },
+            {
+                id: 'arctic',
+                name: 'القطب المتجمد (Arctic Snow)',
+                icon: 'fa-snowflake',
+                price: 1500,
+                gravity: 0.42,
+                grip: 0.68,
+                roughness: 0.95,
+                bridgeChance: 0.40,
+                skyTop: '#0f172a',
+                skyBottom: '#7dd3fc',
+                groundTop: '#f8fafc',
+                groundSub: '#38bdf8',
+                groundDirt: '#1e3a8a',
+                groundRock: '#0f172a',
+                weather: 'snow',
+                desc: 'منحدرات جليدية زلقة مع تساقط ثلوج حي، تحتاج إلى ترقية الإطارات للتماسك!'
+            },
+            {
+                id: 'highway',
+                name: 'الطريق السريع (Autobahn)',
+                icon: 'fa-road',
+                price: 2500,
+                gravity: 0.44,
+                grip: 1.15,
+                roughness: 0.55,
+                bridgeChance: 0.45,
+                skyTop: '#1e1b4b',
+                skyBottom: '#f472b6',
+                groundTop: '#334155',
+                groundSub: '#facc15',
+                groundDirt: '#0f172a',
+                groundRock: '#020617',
+                weather: 'none',
+                desc: 'طريق إسفلتي ممهد بتماسك عالٍ جداً لتحقيق سرعات جنونية ومسافات قياسية.'
+            },
+            {
+                id: 'moon',
+                name: 'سطح القمر (Moon Low-G)',
+                icon: 'fa-moon',
+                price: 3500,
+                gravity: 0.16,
+                grip: 0.82,
+                roughness: 1.20,
+                bridgeChance: 0.15,
+                skyTop: '#020617',
+                skyBottom: '#1e1b4b',
+                groundTop: '#94a3b8',
+                groundSub: '#64748b',
+                groundDirt: '#334155',
+                groundRock: '#0f172a',
+                weather: 'stars',
+                desc: 'جاذبية فضائية منخفضة تمنحك طيراناً طويلاً وشقلبات متعددة ومكافآت هائلة!'
+            }
+        ];
+
+        const UPGRADE_DEFS = [
+            { key: 'engine', name: 'المحرك (ENGINE)', icon: 'fa-bolt', desc: 'يرفع العزم الحقيقي للمحرك والسرعة القصوى لتسلق التلال الحادة', baseCost: 160 },
+            { key: 'suspension', name: 'المساعدات (SUSPENSION)', icon: 'fa-up-down', desc: 'يزيد ثبات النوابض وامتصاص الصدمات عند الهبوط من القفزات', baseCost: 150 },
+            { key: 'tires', name: 'الإطارات (TIRES)', icon: 'fa-circle-dot', desc: 'يرفع معامل الاحتكاك بالأرض ويمنع انزلاق العجلات على المرتفعات', baseCost: 150 },
+            { key: 'awd', name: 'الدفع والتوازن (4WD / AERO)', icon: 'fa-gauge-high', desc: 'يزيد قوة الضغط الهوائي السفلي والتحكم بالدوران في الهواء', baseCost: 170 }
+        ];
+
+        const MAX_UPGRADE_LVL = 15;
+
+        /********************************************************************
+         * 4. إدارة الحفظ والبيانات (Save System)
+         ********************************************************************/
+        const defaultSaveData = {
+            coins: 2500,
+            gems: 25,
+            selectedVehicle: 'hill_climber_mk1',
+            selectedStage: 'countryside',
+            unlockedVehicles: ['hill_climber_mk1'],
+            unlockedStages: ['countryside', 'desert'],
+            bestDistances: { countryside: 0, desert: 0, arctic: 0, highway: 0, moon: 0 },
+            upgrades: {}
+        };
+
+        let saveData = JSON.parse(localStorage.getItem('hcrProCloneSaveV5')) || defaultSaveData;
+
+        // ضمان تهيئة كافة السيارات والمابات
+        VEHICLES.forEach(v => {
+            if (!saveData.upgrades[v.id]) {
+                saveData.upgrades[v.id] = { engine: 1, suspension: 1, tires: 1, awd: 1 };
+            }
+        });
+        if (!VEHICLES.some(v => v.id === saveData.selectedVehicle)) {
+            saveData.selectedVehicle = VEHICLES[0].id;
+        }
+        if (!STAGES.some(s => s.id === saveData.selectedStage)) {
+            saveData.selectedStage = STAGES[0].id;
+        }
+        if (!saveData.unlockedStages) saveData.unlockedStages = ['countryside', 'desert'];
+
+        function saveProgress() {
+            localStorage.setItem('hcrProCloneSaveV5', JSON.stringify(saveData));
+        }
+
+        /********************************************************************
+         * 5. هندسة الماب والتضاريس المتوازنة (Balanced Procedural World)
+         * تتضمن: منطقة انطلاق مسطحة، تلال متناغمة، منصات مراحل كل 400م، وجسور خشبية
+         ********************************************************************/
+        class WorldTerrain {
+            constructor(stage) {
+                this.stage = stage;
+                this.step = 32; // مسافة دقيقة لكل شريحة أرضية لفيزياء ناعمة جداً
+                this.points = [];
+                this.collectibles = [];
+                this.props = [];
+                this.bridges = [];
+                this.lastIdx = -35;
+                this.seed = Math.random() * 500;
+                this.ensureUpTo(3200);
+            }
+
+            // معادلة ارتفاع متوازنة ومصممة لتكون قابلة للعب وممتعة
+            calculateBaseY(idx) {
+                const x = idx * this.step;
+
+                // 1. منطقة البداية مسطحة تماماً لثبات السيارة
+                if (x <= 420) return 420;
+
+                // 2. التحقق من منصات المراحل (Checkpoints) كل 400 متر (كل متر = 28 بكسل)
+                const distMeters = (x - 200) / 28;
+                const nearestCheckpoint = Math.round(distMeters / 400) * 400;
+                if (nearestCheckpoint >= 400 && Math.abs(distMeters - nearestCheckpoint) < 12) {
+                    // تسطيح ناعم لمنطقة بوابة المرحلة ومحطة الوقود
+                }
+
+                // تدرج الصعوبة بشكل منطقي وعادل
+                const distFactor = Math.min(2.1, 0.50 + (x - 420) / 14000) * this.stage.roughness;
+
+                // انتقال سلس من منطقة البداية المسطحة إلى التلال
+                const blend = Math.min(1, (x - 420) / 500);
+
+                // موجات متناسقة قابلة للتسلق والقفز
+                const wave1 = Math.sin(idx * 0.038 + this.seed) * 110 * distFactor;
+                const wave2 = Math.sin(idx * 0.095 + this.seed * 1.7) * 46 * distFactor;
+                const wave3 = Math.cos(idx * 0.19 + this.seed * 0.6) * 16 * distFactor;
+
+                return 420 + (wave1 + wave2 + wave3) * blend;
+            }
+
+            ensureUpTo(targetX) {
+                const targetIdx = Math.ceil(targetX / this.step) + 55;
+                while (this.lastIdx < targetIdx) {
+                    this.lastIdx++;
+                    const idx = this.lastIdx;
+                    const x = idx * this.step;
+                    let y = this.calculateBaseY(idx);
+
+                    // إنشاء جسر خشبي معلق فوق وادٍ في بعض المناطق
+                    if (x > 1400 && idx % 95 === 0 && Math.random() < this.stage.bridgeChance) {
+                        const bridgeLen = 8; // 8 شرائح
+                        const startX = x;
+                        const startY = y;
+                        const endIdx = idx + bridgeLen;
+                        const endX = endIdx * this.step;
+                        const endY = this.calculateBaseY(endIdx);
+
+                        const planks = [];
+                        for (let b = 0; b <= bridgeLen; b++) {
+                            const t = b / bridgeLen;
+                            planks.push({
+                                x: startX + (endX - startX) * t,
+                                baseY: startY + (endY - startY) * t + Math.sin(t * Math.PI) * 14,
+                                dip: 0
+                            });
+                        }
+                        this.bridges.push({ startX, endX, planks });
+                    }
+
+                    // إذا كانت النقطة تحت جسر، نجعل الأرض وادياً عميقاً تحت الجسر
+                    for (let br of this.bridges) {
+                        if (x > br.startX && x < br.endX) {
+                            const midT = (x - br.startX) / (br.endX - br.startX);
+                            y += Math.sin(midT * Math.PI) * 95;
+                        }
+                    }
+
+                    this.points.push({ x, y });
+
+                    // توزيع الوقود، العملات، والماسات بشكل متقايس ومدروس
+                    if (x > 480) {
+                        // عبوة وقود مضمونة كل ~26 شريحة (حوالي كل 30 متر) حتى لا ينقطع اللاعب ظلماً
+                        if (idx % 26 === 0) {
+                            const surfaceY = this.getSurfaceYAt(x, y);
+                            this.collectibles.push({
+                                type: 'fuel',
+                                x: x,
+                                y: surfaceY - 34,
+                                radius: 22,
+                                collected: false
+                            });
+                        }
+                        // قوس من العملات المتدرجة القيمة (5، 25، 100، 500)
+                        else if (idx % 14 >= 1 && idx % 14 <= 6) {
+                            const surfaceY = this.getSurfaceYAt(x, y);
+                            const tier = Math.min(3, Math.floor((x - 400) / 4500));
+                            const coinValues = [5, 25, 100, 500];
+                            const val = coinValues[idx % 14 === 6 ? Math.min(3, tier + 1) : tier];
+                            this.collectibles.push({
+                                type: 'coin',
+                                x: x,
+                                y: surfaceY - 30,
+                                value: val,
+                                radius: 16,
+                                collected: false
+                            });
+                        }
+                        // جوهرة زرقاء نادرة على القمم
+                        else if (idx % 43 === 0) {
+                            const surfaceY = this.getSurfaceYAt(x, y);
+                            this.collectibles.push({
+                                type: 'gem',
+                                x: x,
+                                y: surfaceY - 38,
+                                radius: 16,
+                                collected: false
+                            });
+                        }
+
+                        // عناصر بيئية تجميلية (أشجار، صخور، أعمدة إنارة، فوهات)
+                        if (idx % 8 === 0 && Math.random() > 0.3) {
+                            this.props.push({
+                                x: x,
+                                y: y,
+                                scale: 0.75 + Math.random() * 0.5,
+                                kind: idx % 3
+                            });
+                        }
+                    }
+                }
+            }
+
+            getSurfaceYAt(x, fallbackY) {
+                for (let br of this.bridges) {
+                    if (x >= br.startX && x <= br.endX) {
+                        const t = (x - br.startX) / (br.endX - br.startX);
+                        const p0 = br.planks[0];
+                        const pEnd = br.planks[br.planks.length - 1];
+                        return p0.baseY + (pEnd.baseY - p0.baseY) * t + Math.sin(t * Math.PI) * 14;
+                    }
+                }
+                return fallbackY;
+            }
+
+            // استعلام دقيق عن ارتفاع الأرض أو الجسر وزاوية الميلان عند أي نقطة X
+            sampleGround(x, applyBridgeLoad = false) {
+                if (this.points.length === 0) return { y: 420, angle: 0, isBridge: false };
+
+                // فحص ما إذا كانت النقطة فوق جسر خشبي
+                for (let br of this.bridges) {
+                    if (x >= br.startX && x <= br.endX) {
+                        const totalW = br.endX - br.startX;
+                        const t = (x - br.startX) / totalW;
+                        const exactIdx = t * (br.planks.length - 1);
+                        const i = Math.max(0, Math.min(br.planks.length - 2, Math.floor(exactIdx)));
+                        const frac = exactIdx - i;
+
+                        if (applyBridgeLoad) {
+                            br.planks[i].dip = Math.min(10, br.planks[i].dip + 1.8);
+                        }
+
+                        const y1 = br.planks[i].baseY + br.planks[i].dip;
+                        const y2 = br.planks[i + 1].baseY + br.planks[i + 1].dip;
+                        const y = y1 + (y2 - y1) * frac;
+                        const angle = Math.atan2(y2 - y1, br.planks[i + 1].x - br.planks[i].x);
+                        return { y, angle, isBridge: true };
+                    }
+                }
+
+                const firstX = this.points[0].x;
+                const rawIdx = (x - firstX) / this.step;
+                const i = Math.floor(rawIdx);
+                const frac = rawIdx - i;
+
+                if (i < 0) return { y: this.points[0].y, angle: 0, isBridge: false };
+                if (i >= this.points.length - 2) {
+                    this.ensureUpTo(x + 2200);
+                }
+
+                const p1 = this.points[Math.max(0, Math.min(i, this.points.length - 2))];
+                const p2 = this.points[Math.max(1, Math.min(i + 1, this.points.length - 1))];
+
+                const y = p1.y + (p2.y - p1.y) * frac;
+                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                return { y, angle, isBridge: false };
+            }
+
+            relaxBridges() {
+                for (let br of this.bridges) {
+                    for (let p of br.planks) {
+                        p.dip *= 0.85;
+                    }
+                }
+            }
+        }
+
+        /********************************************************************
+         * 6. المحرك الفيزيائي للمركبة (Multi-Wheel Sub-stepped Physics Engine)
+         * يدعم مركبات بعجلتين أو 3 عجلات (الكات كات الضخمة)، مانع اهتزاز، وتيربو
+         ********************************************************************/
+        class VehiclePhysics {
+            constructor(spec, upgrades, stage) {
+                this.spec = spec;
+                this.stage = stage;
+
+                // معاملات الترقيات الفيزيائية
+                const engMult = 1 + (upgrades.engine - 1) * 0.085;
+                const suspMult = 1 + (upgrades.suspension - 1) * 0.075;
+                const tireMult = 1 + (upgrades.tires - 1) * 0.075;
+                const awdMult = 1 + (upgrades.awd - 1) * 0.08;
+
+                this.enginePower = spec.baseTorque * engMult * 0.92;
+                this.maxSpeed = spec.baseMaxSpeed * (1 + (upgrades.engine - 1) * 0.045);
+                this.springK = spec.baseStiffness * suspMult;
+                this.springDamp = spec.baseDamping * Math.sqrt(suspMult);
+                this.traction = stage.grip * tireMult;
+                this.airTorquePower = spec.airControl * (1 + (upgrades.awd - 1) * 0.04);
+                this.downforce = spec.downforce * awdMult;
+
+                this.maxFuel = spec.fuelCapacity * (1 + (upgrades.awd - 1) * 0.05);
+                this.fuel = this.maxFuel;
+
+                // وضع المركبة في حالة اتزان سكوني تام على سطح الأرض عند البداية
+                const startGroundY = 420;
+                const restCompression = 8;
+
+                this.x = 200;
+                this.y = startGroundY - spec.wheelRadius - 8 - (spec.suspensionRest - restCompression);
+                this.vx = 0;
+                this.vy = 0;
+                this.angle = 0;
+                this.angularVel = 0;
+
+                // حالة العجلات والعدادات
+                this.wheelRot = 0;
+                this.rpm = 0;
+                this.boostCharge = 0;
+                this.wheelsWorld = spec.wheelPositions.map(offsetX => ({
+                    offsetX,
+                    x: this.x + offsetX,
+                    y: startGroundY - spec.wheelRadius,
+                    grounded: true,
+                    compression: restCompression,
+                    groundY: startGroundY,
+                    slopeCos: 1
+                }));
+
+                // رأس السائق التفاعلي
+                this.headAngle = 0;
+                this.headVel = 0;
+
+                // تتبع الحركات الهوائية والاصطدام
+                this.airFrames = 0;
+                this.flipAccumulator = 0;
+                this.wheelieFrames = 0;
+                this.isDead = false;
+                this.deathReason = '';
+            }
+
+            // تحديث الفيزياء على 6 خطوات فرعية (Sub-steps) لثبات تام على المنحدرات والخط المستقيم
+            update(terrain, gasPressed, brakePressed, particles) {
+                if (this.isDead) return;
+
+                terrain.relaxBridges();
+
+                const hasFuel = this.fuel > 0;
+                const activeGas = gasPressed && hasFuel;
+                const activeBrake = brakePressed;
+
+                // استهلاك الوقود التدريجي
+                if (hasFuel) {
+                    this.fuel = Math.max(0, this.fuel - (activeGas ? 0.072 : 0.020));
+                }
+
+                // تحديث عداد RPM وعداد التيربو BOOST
+                const targetRpm = activeGas
+                    ? Math.min(1, 0.32 + (Math.abs(this.vx) / this.maxSpeed) * 0.68)
+                    : Math.max(0.06, (Math.abs(this.vx) / this.maxSpeed) * 0.55);
+                this.rpm += (targetRpm - this.rpm) * 0.14;
+
+                if (activeGas && this.rpm > 0.72) {
+                    this.boostCharge = Math.min(1, this.boostCharge + 0.008);
+                } else {
+                    this.boostCharge = Math.max(0, this.boostCharge - 0.015);
+                }
+
+                const SUB_STEPS = 6;
+                const dt = 1 / SUB_STEPS;
+                const numWheels = this.spec.wheelPositions.length;
+                const wRadius = this.spec.wheelRadius;
+                const restLen = this.spec.suspensionRest;
+
+                let anyWheelGrounded = false;
+                let rearGrounded = false;
+                let frontGrounded = false;
+
+                for (let step = 0; step < SUB_STEPS; step++) {
+                    const cosA = Math.cos(this.angle);
+                    const sinA = Math.sin(this.angle);
+
+                    let forceX = 0;
+                    let forceY = this.stage.gravity;
+                    let torque = 0;
+                    let groundedCount = 0;
+                    let avgGroundAngle = 0;
+
+                    // حساب تلامس كل عجلة مع الأرض ونظام التعليق المرن غير القافز
+                    for (let idx = 0; idx < numWheels; idx++) {
+                        const localX = this.spec.wheelPositions[idx];
+                        const mountX = this.x + cosA * localX - sinA * 8;
+                        const mountY = this.y + sinA * localX + cosA * 8;
+
+                        const idealWX = mountX - sinA * restLen;
+                        const idealWY = mountY + cosA * restLen;
+
+                        const gData = terrain.sampleGround(idealWX, step === 0);
+                        const penetration = (idealWY + wRadius) - gData.y;
+
+                        // هامش تلامس مغناطيسي خفيف يبقي العجلة ملتصقة بالأرض بدل القفز المتكرر
+                        if (penetration > -4) {
+                            anyWheelGrounded = true;
+                            groundedCount++;
+                            avgGroundAngle += gData.angle;
+
+                            if (idx === 0) rearGrounded = true;
+                            if (idx === numWheels - 1) frontGrounded = true;
+
+                            const clampedPen = Math.max(0, Math.min(penetration, restLen * 0.95));
+                            const leverArm = localX;
+                            const wheelPointVy = this.vy + this.angularVel * leverArm;
+
+                            // قوة النابض مع تخميد ثنائي الاتجاه يمنع ارتداد السيارة للأعلى
+                            const springPush = clampedPen * (this.springK * 0.22);
+                            const damperForce = -wheelPointVy * (this.springDamp * 1.85);
+                            const totalSuspForce = Math.max(-this.stage.gravity * 0.4, Math.min(springPush + damperForce, this.stage.gravity * 1.9));
+
+                            // توجيه قوة المساعدات عمودياً لمنع ركل السيارة للخلف أو للأمام
+                            forceY -= totalSuspForce;
+
+                            // موازنة زاوية الشاسيه بنعومة مع العجلات
+                            torque += (leverArm * -totalSuspForce) * 0.00016;
+
+                            // منع غوص الشاسيه داخل الجبل في المنحدرات الحادة
+                            if (penetration > restLen * 0.88) {
+                                const hardStop = penetration - restLen * 0.88;
+                                this.y -= hardStop * 0.35;
+                                if (this.vy > 0) this.vy *= 0.5;
+                            }
+
+                            // الدفع السلس على طول زاوية الجبل أو الطريق المستقيم
+                            const slopeCos = Math.cos(gData.angle);
+                            const slopeSin = Math.sin(gData.angle);
+                            const boostMult = this.boostCharge > 0.85 ? 1.18 : 1.0;
+
+                            if (activeGas && this.vx < this.maxSpeed) {
+                                const wheelDrive = (this.enginePower / numWheels) * 0.54 * Math.min(1.35, this.traction) * boostMult;
+                                forceX += slopeCos * wheelDrive;
+                                forceY += slopeSin * wheelDrive;
+
+                                // رفع مقدمة خفيف وواقعي فقط عند الانطلاق بقوة
+                                if (idx === 0 && this.vx < this.maxSpeed * 0.45) {
+                                    torque -= wheelDrive * 0.0038;
+                                }
+                            } else if (activeBrake) {
+                                if (this.vx > 0.25) {
+                                    this.vx *= Math.pow(0.92, dt);
+                                    torque += 0.0018;
+                                } else if (hasFuel && this.vx > -this.maxSpeed * 0.5) {
+                                    const revDrive = (this.enginePower / numWheels) * 0.40 * this.traction;
+                                    forceX -= slopeCos * revDrive;
+                                    forceY -= slopeSin * revDrive;
+                                }
+                            }
+
+                            // تثبيت موقع الإطار مباشرة فوق سطح الأرض بدقة بصرية تامة
+                            const wheelVisualY = Math.min(idealWY, gData.y - wRadius);
+                            this.wheelsWorld[idx] = {
+                                offsetX: localX,
+                                x: idealWX,
+                                y: wheelVisualY,
+                                grounded: true,
+                                compression: clampedPen,
+                                groundY: gData.y,
+                                slopeCos
+                            };
+                        } else {
+                            this.wheelsWorld[idx] = {
+                                offsetX: localX,
+                                x: idealWX,
+                                y: idealWY,
+                                grounded: false,
+                                compression: 0,
+                                groundY: gData.y,
+                                slopeCos: 1
+                            };
+                        }
+                    }
+
+                    // محاذاة حركة السيارة مع ميلان الجبل حتى تسير فوقه بسلاسة ولا تقفز إلا عند القمم
+                    if (groundedCount > 0) {
+                        avgGroundAngle /= groundedCount;
+
+                        // توجيه متجه السرعة بمحاذاة سطح الجبل عند السير عليه
+                        const groundFollowY = this.vx * Math.tan(avgGroundAngle);
+                        // إذا كان المنحدر ينزل فجأة (قمة جبل) والسيارة مسرعة، نسمح لها بالقفز الطبيعي!
+                        const isCrestJump = (groundFollowY - this.vy > 2.2) && Math.abs(this.vx) > 6.5;
+
+                        if (!isCrestJump) {
+                            this.vy += (groundFollowY - this.vy) * 0.32 * dt;
+                        }
+
+                        // موازنة زاوية جسم السيارة مع ميلان الأرض عند تلامس العجلات
+                        if (groundedCount >= 2 && !activeGas && !activeBrake) {
+                            const angleDiff = avgGroundAngle - this.angle;
+                            torque += angleDiff * 0.018;
+                        }
+                    }
+
+                    // القوة الهوائية الضاغطة للأسفل (Downforce) لزيادة الالتصاق بالأرض
+                    if (anyWheelGrounded && Math.abs(this.vx) > 2) {
+                        forceY += (this.downforce + 0.025) * (Math.abs(this.vx) / this.maxSpeed);
+                    }
+
+                    // التحكم في توازن المركبة في الهواء أو أثناء الـ Wheelie
+                    const airCtrl = 0.0028 * this.airTorquePower;
+                    if (!anyWheelGrounded) {
+                        if (activeGas) torque -= airCtrl;
+                        if (activeBrake) torque += airCtrl * 1.1;
+                    } else if (rearGrounded && !frontGrounded) {
+                        if (activeGas) torque -= airCtrl * 0.65;
+                        if (activeBrake) torque += airCtrl * 0.95;
+                    }
+
+                    // تكامل السرعة والموقع
+                    this.vx += forceX * dt;
+                    this.vy += forceY * dt;
+                    this.angularVel += torque * dt;
+
+                    if (anyWheelGrounded) {
+                        this.vx *= Math.pow(0.993, dt);
+                        this.vy *= Math.pow(0.78, dt);
+                        this.angularVel *= Math.pow(0.76, dt);
+                    } else {
+                        this.vx *= Math.pow(0.998, dt);
+                        this.angularVel *= Math.pow(0.975, dt);
+                    }
+
+                    this.x += this.vx * dt;
+                    this.y += this.vy * dt;
+                    this.angle += this.angularVel * dt;
+
+                    // جدار بداية الماب
+                    if (this.x < 110) {
+                        this.x = 110;
+                        this.vx = Math.max(0, this.vx);
+                    }
+                }
+
+                this.anyGrounded = anyWheelGrounded;
+                this.rearGrounded = rearGrounded;
+                this.frontGrounded = frontGrounded;
+
+                // تطاير العشب/الرمل/الثلج من العجلة الخلفية عند التسارع
+                const rearW = this.wheelsWorld[0];
+                if (activeGas && rearW && rearW.grounded && Math.random() < 0.55) {
+                    particles.push({
+                        x: rearW.x - 8,
+                        y: rearW.groundY - 2,
+                        vx: -rearW.slopeCos * (2.5 + Math.random() * 4),
+                        vy: -1.2 - Math.random() * 2.8,
+                        size: 3.5 + Math.random() * 4,
+                        color: Math.random() > 0.4 ? this.stage.groundTop : this.stage.groundDirt,
+                        alpha: 1,
+                        life: 24
+                    });
+                }
+
+                // لهب التيربو ودخان العادم
+                if (activeGas && Math.random() < 0.45) {
+                    const cosA = Math.cos(this.angle);
+                    const sinA = Math.sin(this.angle);
+                    const exX = this.x - cosA * (this.spec.chassisWidth * 0.48);
+                    const exY = this.y - sinA * (this.spec.chassisWidth * 0.48);
+                    particles.push({
+                        x: exX,
+                        y: exY,
+                        vx: this.vx * 0.2 - cosA * 2.5,
+                        vy: -0.7 - Math.random() * 1.2,
+                        size: 5 + Math.random() * 5,
+                        color: this.boostCharge > 0.85 ? '#38bdf8' : 'rgba(203, 213, 225, 0.45)',
+                        alpha: 0.75,
+                        life: 25
+                    });
+                }
+
+                // دوران الإطارات الواقعي المتطابق مع المسافة المقطوعة على الأرض
+                if (anyWheelGrounded) {
+                    const groundSpeed = Math.hypot(this.vx, this.vy) * (this.vx >= 0 ? 1 : -1);
+                    this.wheelRot += groundSpeed / wRadius;
+                } else if (activeGas) {
+                    this.wheelRot += 0.36;
+                } else if (activeBrake) {
+                    this.wheelRot -= 0.26;
+                }
+
+                // فيزياء رأس السائق المرن
+                const targetHead = Math.max(-0.55, Math.min(0.55, -this.angularVel * 5.5 - (activeGas ? 0.22 : 0) + (activeBrake ? 0.22 : 0)));
+                this.headVel = (this.headVel + (targetHead - this.headAngle) * 0.20) * 0.80;
+                this.headAngle += this.headVel;
+
+                // فحص اصطدام رأس السائق بالأرض عند انقلاب المركبة (DRIVER DOWN)
+                const cosA = Math.cos(this.angle);
+                const sinA = Math.sin(this.angle);
+                const headWorldX = this.x + sinA * 35;
+                const headWorldY = this.y - cosA * 35;
+                const headGround = terrain.sampleGround(headWorldX);
+
+                if (headWorldY + 13 >= headGround.y && cosA < -0.18) {
+                    this.isDead = true;
+                    this.deathReason = 'neck_flip';
+                    sound.playNeckCrack();
+                }
+
+                // فحص انتهاء الوقود وتوقف المركبة
+                if (this.fuel <= 0 && Math.abs(this.vx) < 0.14 && anyWheelGrounded) {
+                    this.outFuelTimer = (this.outFuelTimer || 0) + 1;
+                    if (this.outFuelTimer > 105) {
+                        this.isDead = true;
+                        this.deathReason = 'out_of_fuel';
+                    }
+                } else {
+                    this.outFuelTimer = 0;
+                }
+            }
+        }
+
+        /********************************************************************
+         * 7. محرك رسم المركبات المفصل والعدادات التناظرية (Graphics & Gauges)
+         ********************************************************************/
+        function renderVehicle(ctx, spec, x, y, angle, wheelRot, wheelsWorld, headAngle = 0, scale = 1) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.scale(scale, scale);
+
+            const cosA = Math.cos(angle);
+            const sinA = Math.sin(angle);
+
+            // ظل المركبة على الأرض
+            if (wheelsWorld && wheelsWorld.length >= 2) {
+                const firstW = wheelsWorld[0];
+                const lastW = wheelsWorld[wheelsWorld.length - 1];
+                const midX = ((firstW.x - x) + (lastW.x - x)) * 0.5;
+                const maxY = Math.max(firstW.y - y, lastW.y - y) + spec.wheelRadius - 2;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
+                ctx.beginPath();
+                ctx.ellipse(midX, maxY, spec.chassisWidth * 0.56, 9, angle * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 1. رسم أذرع الدفرنس ونوابض المساعدات لكل عجلة
+            if (wheelsWorld) {
+                wheelsWorld.forEach(w => {
+                    const wx = w.x - x;
+                    const wy = w.y - y;
+                    const mx = cosA * w.offsetX - sinA * 8;
+                    const my = sinA * w.offsetX + cosA * 8;
+
+                    // ذراع الشاسيه السفلي
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 8);
+                    ctx.lineTo(wx, wy);
+                    ctx.stroke();
+
+                    // أنبوب المساعد الهيدروليكي
+                    ctx.strokeStyle = '#64748b';
+                    ctx.lineWidth = 7;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(mx, my);
+                    ctx.lineTo(wx, wy);
+                    ctx.stroke();
+
+                    // نابض اليايات الحلزوني الأحمر/الأصفر
+                    ctx.strokeStyle = '#facc15';
+                    ctx.lineWidth = 3.2;
+                    const coils = 7;
+                    const dx = (wx - mx) / coils;
+                    const dy = (wy - my) / coils;
+                    ctx.beginPath();
+                    ctx.moveTo(mx, my);
+                    for (let c = 1; c < coils; c++) {
+                        const side = (c % 2 === 0 ? 7 : -7);
+                        ctx.lineTo(mx + dx * c + side * cosA, my + dy * c + side * sinA);
+                    }
+                    ctx.lineTo(wx, wy);
+                    ctx.stroke();
+                });
+            }
+
+            // 2. رسم جسم المركبة والسائق (يدور مع الشاسيه)
+            ctx.save();
+            ctx.rotate(angle);
+
+            const cw = spec.chassisWidth;
+            const ch = spec.chassisHeight;
+
+            // السائق بقبعته الحمراء الشهيرة (Bill Newton)
+            ctx.save();
+            const dX = spec.bodyType === 'katkat' ? -10 : -6;
+            const dY = spec.bodyType === 'katkat' ? -24 : -16;
+            ctx.translate(dX, dY);
+
+            // قميص السائق
+            ctx.fillStyle = '#1d4ed8';
+            ctx.beginPath();
+            ctx.roundRect(-11, -5, 22, 20, 6);
+            ctx.fill();
+
+            // الرأس المتأرجح
+            ctx.rotate(headAngle);
+            ctx.fillStyle = '#fde68a';
+            ctx.beginPath();
+            ctx.arc(0, -14, 11.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // النظارة والابتسامة
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(2, -17, 9, 4.5);
+
+            // القبعة الحمراء المقلوبة للخلف
+            ctx.fillStyle = '#dc2626';
+            ctx.beginPath();
+            ctx.arc(0, -16, 11.8, Math.PI, Math.PI * 2);
+            ctx.fill();
+            ctx.fillRect(-17, -17, 17, 4.5);
+            ctx.restore();
+
+            // طلاء المركبة المتدرج
+            const bodyGrad = ctx.createLinearGradient(0, -ch, 0, ch * 0.6);
+            bodyGrad.addColorStop(0, spec.color);
+            bodyGrad.addColorStop(1, spec.secondaryColor);
+            ctx.fillStyle = bodyGrad;
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 3.2;
+
+            if (spec.bodyType === 'katkat') {
+                // الكات كات الضخمة الكبيرة (Mega 4x4/6x6 SUV)
+                ctx.beginPath();
+                ctx.moveTo(-cw / 2, 16);
+                ctx.lineTo(-cw / 2, -22);
+                ctx.lineTo(-cw * 0.43, -46);
+                ctx.lineTo(cw * 0.16, -46);
+                ctx.lineTo(cw * 0.27, -18);
+                ctx.lineTo(cw / 2, -14);
+                ctx.lineTo(cw / 2, 16);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // النوافذ المظللة للكات كات
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+                ctx.beginPath();
+                ctx.roundRect(-cw * 0.39, -41, cw * 0.30, 21, 4);
+                ctx.roundRect(-4, -41, cw * 0.20, 21, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                // سلة سقف حديدية مع كشافات ليد فوق الكات كات
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(-cw * 0.38, -52, cw * 0.52, 5);
+                for (let lx = -cw * 0.32; lx <= cw * 0.10; lx += 16) {
+                    ctx.fillStyle = '#fef08a';
+                    ctx.fillRect(lx, -56, 8, 4);
+                }
+
+                // إطار احتياطي خلفي ودعامة فولاذية أمامية
+                ctx.fillStyle = '#18181b';
+                ctx.beginPath();
+                ctx.roundRect(-cw / 2 - 10, -18, 10, 30, 4);
+                ctx.fill();
+
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(cw / 2, 14);
+                ctx.lineTo(cw / 2 + 8, 14);
+                ctx.lineTo(cw / 2 + 5, -13);
+                ctx.stroke();
+
+            } else if (spec.bodyType === 'sedan' || spec.bodyType === 'rally') {
+                // السيارة العادية (Sedan GT) أو الرالي الخارقة
+                ctx.beginPath();
+                ctx.moveTo(-cw / 2, 12);
+                ctx.lineTo(-cw / 2, -6);
+                ctx.lineTo(-cw * 0.34, -8);
+                ctx.lineTo(-cw * 0.20, -30);
+                ctx.lineTo(cw * 0.12, -30);
+                ctx.lineTo(cw * 0.28, -8);
+                ctx.lineTo(cw / 2, -3);
+                ctx.lineTo(cw / 2, 12);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+                ctx.beginPath();
+                ctx.moveTo(-cw * 0.18, -26);
+                ctx.lineTo(cw * 0.10, -26);
+                ctx.lineTo(cw * 0.23, -8);
+                ctx.lineTo(-cw * 0.28, -8);
+                ctx.closePath();
+                ctx.fill();
+
+                if (spec.bodyType === 'rally') {
+                    // جناح خلفي ضخم لسيارة الرالي وخطوط سباق
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(-cw / 2 - 8, -24, 18, 5);
+                    ctx.beginPath();
+                    ctx.moveTo(-cw / 2 + 4, -6);
+                    ctx.lineTo(-cw / 2 - 4, -22);
+                    ctx.lineTo(-cw / 2 + 2, -22);
+                    ctx.fill();
+                }
+
+            } else if (spec.bodyType === 'pickup') {
+                // شاحنة سوبر ديزل بيك أب
+                ctx.beginPath();
+                ctx.moveTo(-cw / 2, 14);
+                ctx.lineTo(-cw / 2, -10);
+                ctx.lineTo(-cw * 0.12, -10);
+                ctx.lineTo(-cw * 0.12, -36);
+                ctx.lineTo(cw * 0.18, -36);
+                ctx.lineTo(cw * 0.28, -12);
+                ctx.lineTo(cw / 2, -10);
+                ctx.lineTo(cw / 2, 14);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // أنبوب عادم رأسي خلف الكابينة
+                ctx.fillStyle = '#94a3b8';
+                ctx.fillRect(-cw * 0.16, -42, 6, 32);
+
+            } else if (spec.bodyType === 'bike') {
+                // دراجة الموتوكروس النارية
+                ctx.beginPath();
+                ctx.moveTo(-cw * 0.42, 4);
+                ctx.lineTo(-cw * 0.15, -14);
+                ctx.lineTo(cw * 0.25, -18);
+                ctx.lineTo(cw * 0.42, 2);
+                ctx.lineTo(0, 10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                // مقود الدراجة
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(cw * 0.20, -16);
+                ctx.lineTo(cw * 0.12, -32);
+                ctx.stroke();
+
+            } else if (spec.bodyType === 'buggy') {
+                // باجي الصحراء
+                ctx.strokeStyle = '#f8fafc';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(-cw * 0.38, -2);
+                ctx.quadraticCurveTo(-5, -45, cw * 0.35, -2);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(-cw / 2, 10);
+                ctx.lineTo(-cw * 0.35, -8);
+                ctx.lineTo(cw * 0.38, -4);
+                ctx.lineTo(cw / 2, 10);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+            } else {
+                // الجيب الكلاسيكية والشاحنة المتوحشة
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(-cw * 0.28, -6);
+                ctx.lineTo(-cw * 0.28, -32);
+                ctx.lineTo(cw * 0.14, -32);
+                ctx.lineTo(cw * 0.26, -6);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.roundRect(-cw / 2, -ch / 2 + 2, cw, ch, 10);
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            // خط لمعان جانبي ومصابيح أمامية وخلفية
+            ctx.fillStyle = 'rgba(255,255,255,0.22)';
+            ctx.fillRect(-cw * 0.40, 0, cw * 0.78, 4);
+
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(cw / 2 - 2, -1, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(-cw / 2, -3, 4, 8);
+
+            ctx.restore();
+
+            // 3. رسم جميع العجلات (عجلتين أو 3 عجلات للكات كات الضخمة)
+            if (wheelsWorld) {
+                wheelsWorld.forEach(w => {
+                    const wx = w.x - x;
+                    const wy = w.y - y;
+                    const r = spec.wheelRadius;
+
+                    ctx.save();
+                    ctx.translate(wx, wy);
+                    ctx.rotate(wheelRot);
+
+                    // إطار الكاوتش المسنن
+                    const tireGrad = ctx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
+                    tireGrad.addColorStop(0, '#27272a');
+                    tireGrad.addColorStop(1, '#09090b');
+                    ctx.fillStyle = tireGrad;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // نقشة الإطار (Treads)
+                    ctx.fillStyle = '#3f3f46';
+                    const numTreads = 12;
+                    for (let i = 0; i < numTreads; i++) {
+                        ctx.save();
+                        ctx.rotate((i / numTreads) * Math.PI * 2);
+                        ctx.fillRect(r - 4, -2.5, 5.5, 5);
+                        ctx.restore();
+                    }
+
+                    // الجنط المعدني الداخلي
+                    ctx.fillStyle = '#e4e4e7';
+                    ctx.strokeStyle = '#27272a';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // أذرع الجنط
+                    ctx.strokeStyle = '#52525b';
+                    ctx.lineWidth = 3.5;
+                    for (let i = 0; i < 5; i++) {
+                        const a = (i / 5) * Math.PI * 2;
+                        ctx.beginPath();
+                        ctx.moveTo(0, 0);
+                        ctx.lineTo(Math.cos(a) * r * 0.52, Math.sin(a) * r * 0.52);
+                        ctx.stroke();
+                    }
+
+                    // مركز العجلة الملون
+                    ctx.fillStyle = spec.color;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r * 0.20, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.restore();
+                });
+            }
+
+            ctx.restore();
+        }
+
+        // رسم العدادات التناظرية في أسفل الشاشة مثل اللعبة الأصلية (RPM & BOOST)
+        const gaugesCanvas = document.getElementById('gaugesCanvas');
+        const gCtx = gaugesCanvas.getContext('2d');
+
+        function renderDashboardGauges(rpmRatio, boostRatio) {
+            gCtx.clearRect(0, 0, gaugesCanvas.width, gaugesCanvas.height);
+
+            const drawDial = (cx, cy, radius, label, valueRatio, isRedline) => {
+                gCtx.save();
+                // خلفية العداد الدائرية المعدنية
+                const grad = gCtx.createRadialGradient(cx, cy, radius * 0.2, cx, cy, radius);
+                grad.addColorStop(0, '#1e293b');
+                grad.addColorStop(1, '#090d16');
+                gCtx.fillStyle = grad;
+                gCtx.strokeStyle = '#94a3b8';
+                gCtx.lineWidth = 4;
+                gCtx.beginPath();
+                gCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+                gCtx.fill();
+                gCtx.stroke();
+
+                // تدريجات العداد
+                const startA = Math.PI * 0.78;
+                const endA = Math.PI * 2.22;
+                const ticks = 9;
+                for (let i = 0; i <= ticks; i++) {
+                    const t = i / ticks;
+                    const a = startA + (endA - startA) * t;
+                    const isDanger = isRedline && t >= 0.75;
+                    gCtx.strokeStyle = isDanger ? '#ef4444' : '#e2e8f0';
+                    gCtx.lineWidth = i % 2 === 0 ? 3 : 1.5;
+                    gCtx.beginPath();
+                    gCtx.moveTo(cx + Math.cos(a) * (radius - 12), cy + Math.sin(a) * (radius - 12));
+                    gCtx.lineTo(cx + Math.cos(a) * (radius - 4), cy + Math.sin(a) * (radius - 4));
+                    gCtx.stroke();
+                }
+
+                // اسم العداد
+                gCtx.fillStyle = '#cbd5e1';
+                gCtx.font = '900 11px Cairo';
+                gCtx.textAlign = 'center';
+                gCtx.fillText(label, cx, cy + radius * 0.56);
+
+                // إبرة العداد الحمراء
+                const needleA = startA + (endA - startA) * Math.max(0, Math.min(1, valueRatio));
+                gCtx.strokeStyle = '#ef4444';
+                gCtx.lineWidth = 3.5;
+                gCtx.lineCap = 'round';
+                gCtx.beginPath();
+                gCtx.moveTo(cx, cy);
+                gCtx.lineTo(cx + Math.cos(needleA) * (radius - 10), cy + Math.sin(needleA) * (radius - 10));
+                gCtx.stroke();
+
+                // محور الإبرة الوسطي
+                gCtx.fillStyle = '#e2e8f0';
+                gCtx.beginPath();
+                gCtx.arc(cx, cy, 5.5, 0, Math.PI * 2);
+                gCtx.fill();
+                gCtx.restore();
+            };
+
+            // عداد RPM الكبير وعداد التيربو BOOST الأصغر بجانبه
+            drawDial(105, 65, 54, 'RPM x1000', rpmRatio, true);
+            drawDial(222, 72, 42, 'BOOST', boostRatio, false);
+        }
+
+        /********************************************************************
+         * 8. إدارة اللعبة وحلقة التصيير الرئيسية (Main Game Loop)
+         ********************************************************************/
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const previewCanvas = document.getElementById('garagePreviewCanvas');
+        const previewCtx = previewCanvas.getContext('2d');
+
+        let gameState = 'GARAGE'; // GARAGE, PLAYING, PAUSED, GAMEOVER
+        let activeCar = null;
+        let activeTerrain = null;
+        let activeStage = STAGES[0];
+        let particles = [];
+        let weatherParticles = [];
+        let floatingPopups = [];
+
+        let inputGas = false;
+        let inputBrake = false;
+
+        let runCoins = 0;
+        let runStuntCoins = 0;
+        let runStageBonus = 0;
+        let maxRunMeters = 0;
+        let nextStageTarget = 400;
+
+        // تهيئة جزيئات الطقس (الثلج أو الغبار)
+        for (let i = 0; i < 45; i++) {
+            weatherParticles.push({
+                x: Math.random() * 1600,
+                y: Math.random() * 900,
+                r: 1.5 + Math.random() * 2.5,
+                speedX: -1 - Math.random() * 1.5,
+                speedY: 1 + Math.random() * 2
+            });
+        }
+
+        function resizeAll() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (previewCanvas.parentElement) {
+                previewCanvas.width = previewCanvas.parentElement.clientWidth || 380;
+                previewCanvas.height = previewCanvas.parentElement.clientHeight || 220;
+            }
+        }
+        window.addEventListener('resize', resizeAll);
+        resizeAll();
+
+        function startRaceSession() {
+            const spec = VEHICLES.find(v => v.id === saveData.selectedVehicle) || VEHICLES[0];
+            activeStage = STAGES.find(s => s.id === saveData.selectedStage) || STAGES[0];
+            const carUpgrades = saveData.upgrades[spec.id];
+
+            activeTerrain = new WorldTerrain(activeStage);
+            activeCar = new VehiclePhysics(spec, carUpgrades, activeStage);
+
+            particles = [];
+            floatingPopups = [];
+            runCoins = 0;
+            runStuntCoins = 0;
+            runStageBonus = 0;
+            maxRunMeters = 0;
+            nextStageTarget = 400;
+
+            document.getElementById('garageScreen').classList.add('hidden');
+            document.getElementById('pauseModal').classList.add('hidden');
+            document.getElementById('pauseModal').classList.remove('flex');
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.remove('flex');
+
+            const hud = document.getElementById('hud');
+            hud.classList.remove('hidden');
+            hud.classList.add('flex');
+
+            document.getElementById('hudBestDistance').textContent = (saveData.bestDistances[activeStage.id] || 0) + ' م';
+            document.getElementById('hudTargetStage').textContent = nextStageTarget + ' م';
+            document.getElementById('hudCoins').textContent = saveData.coins.toLocaleString();
+            document.getElementById('hudGems').textContent = saveData.gems;
+
+            gameState = 'PLAYING';
+            sound.startEngine();
+        }
+
+        function pushStuntBanner(title, bonusCoins, colorClass = 'bg-amber-400 text-slate-950') {
+            saveData.coins += bonusCoins;
+            runStuntCoins += bonusCoins;
+            sound.playCoin();
+
+            const feed = document.getElementById('stuntFeed');
+            const el = document.createElement('div');
+            el.className = `${colorClass} font-black px-4 py-1 rounded-full text-xs sm:text-sm shadow-xl border-2 border-white animate-bounce`;
+            el.innerHTML = `${title} +${bonusCoins} $`;
+            feed.appendChild(el);
+            setTimeout(() => el.remove(), 1700);
+        }
+
+        function triggerGameOverScreen() {
+            gameState = 'GAMEOVER';
+            sound.stopEngine();
+            setGasState(false);
+            setBrakeState(false);
+
+            const finalMeters = Math.floor(maxRunMeters);
+            const prevBest = saveData.bestDistances[activeStage.id] || 0;
+            if (finalMeters > prevBest) {
+                saveData.bestDistances[activeStage.id] = finalMeters;
+            }
+            saveProgress();
+
+            const stamp = document.getElementById('gameOverStamp');
+            const title = document.getElementById('goReasonTitle');
+            const sub = document.getElementById('goReasonSub');
+
+            if (activeCar.deathReason === 'neck_flip') {
+                stamp.textContent = 'DRIVER DOWN!';
+                stamp.className = 'stamp-badge inline-block bg-red-600 text-white font-black text-lg sm:text-xl px-5 py-1.5 rounded-xl border-4 border-white shadow-xl mb-3';
+                title.textContent = 'انقلبت المركبة!';
+                sub.textContent = 'ارتطم رأس السائق بالأرض، استخدم دواستي البنزين والفرامل لموازنة المركبة في الهواء!';
+            } else {
+                stamp.textContent = 'OUT OF FUEL!';
+                stamp.className = 'stamp-badge inline-block bg-amber-600 text-white font-black text-lg sm:text-xl px-5 py-1.5 rounded-xl border-4 border-white shadow-xl mb-3';
+                title.textContent = 'نفد الوقود!';
+                sub.textContent = 'انتهى البنزين قبل الوصول لمحطة الوقود التالية، طوّر المحرك والـ 4WD في الكراج!';
+            }
+
+            document.getElementById('goDistVal').textContent = finalMeters + ' متر';
+            document.getElementById('goBestVal').textContent = saveData.bestDistances[activeStage.id] + ' متر';
+            document.getElementById('goCoinsVal').textContent = '+' + runCoins.toLocaleString() + ' $';
+            document.getElementById('goStuntsVal').textContent = '+' + runStuntCoins.toLocaleString() + ' $';
+            document.getElementById('goStageBonusVal').textContent = '+' + runStageBonus.toLocaleString() + ' $';
+
+            const modal = document.getElementById('gameOverModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function updatePlayingState() {
+            if (gameState !== 'PLAYING' || !activeCar) return;
+
+            activeTerrain.ensureUpTo(activeCar.x + 2000);
+            activeCar.update(activeTerrain, inputGas, inputBrake, particles);
+            sound.updateEngine(activeCar.rpm, inputGas && activeCar.fuel > 0);
+
+            // حساب المسافة بالأمتار وفحص الوصول لهدف المرحلة (كل 400 متر)
+            const currentMeters = Math.max(0, (activeCar.x - 200) / 28);
+            if (currentMeters > maxRunMeters) {
+                maxRunMeters = currentMeters;
+            }
+
+            if (maxRunMeters >= nextStageTarget) {
+                const stageReward = nextStageTarget * 2;
+                saveData.coins += stageReward;
+                runStageBonus += stageReward;
+                pushStuntBanner(`اجتياز مرحلة ${nextStageTarget}م بنجاح!`, stageReward, 'bg-emerald-400 text-slate-950');
+                nextStageTarget += 400;
+                document.getElementById('hudTargetStage').textContent = nextStageTarget + ' م';
+            }
+
+            // فحص الحركات الهوائية والشقلبات والـ Wheelie
+            if (!activeCar.anyGrounded) {
+                activeCar.airFrames++;
+                activeCar.flipAccumulator += activeCar.angularVel;
+
+                if (Math.abs(activeCar.flipAccumulator) >= Math.PI * 1.82) {
+                    const isBackFlip = activeCar.flipAccumulator < 0;
+                    pushStuntBanner(isBackFlip ? 'شقلبة خلفية BACKFLIP!' : 'شقلبة أمامية FRONTFLIP!', 150);
+                    activeCar.flipAccumulator = 0;
+                }
+            } else {
+                if (activeCar.airFrames >= 48) {
+                    const airReward = Math.floor(activeCar.airFrames / 20) * 35;
+                    pushStuntBanner('طيران طويل AIR TIME!', airReward, 'bg-sky-400 text-slate-950');
+                }
+                activeCar.airFrames = 0;
+                activeCar.flipAccumulator = 0;
+
+                // مكافأة السير على الإطار الخلفي فقط (Wheelie)
+                if (activeCar.rearGrounded && !activeCar.frontGrounded) {
+                    activeCar.wheelieFrames++;
+                    if (activeCar.wheelieFrames % 75 === 0) {
+                        pushStuntBanner('توازن خلفي WHEELIE!', 100, 'bg-purple-400 text-slate-950');
+                    }
+                } else {
+                    activeCar.wheelieFrames = 0;
+                }
+            }
+
+            // فحص التقاط العملات، الوقود، والماسات
+            for (let item of activeTerrain.collectibles) {
+                if (item.collected) continue;
+                const dx = activeCar.x - item.x;
+                const dy = activeCar.y - item.y;
+                if (dx * dx + dy * dy < 4200) {
+                    item.collected = true;
+                    if (item.type === 'fuel') {
+                        activeCar.fuel = activeCar.maxFuel;
+                        sound.playFuel();
+                        floatingPopups.push({ x: item.x, y: item.y, text: 'FUEL FULL!', color: '#4ade80', life: 45 });
+                    } else if (item.type === 'coin') {
+                        saveData.coins += item.value;
+                        runCoins += item.value;
+                        sound.playCoin();
+                        floatingPopups.push({ x: item.x, y: item.y, text: '+' + item.value, color: '#facc15', life: 36 });
+                    } else if (item.type === 'gem') {
+                        saveData.gems += 1;
+                        sound.playGem();
+                        floatingPopups.push({ x: item.x, y: item.y, text: '+1 GEM 💎', color: '#38bdf8', life: 45 });
+                    }
+                }
+            }
+
+            // تحديث الجزيئات والنصوص الطائرة
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                p.alpha = p.life / 25;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+            for (let i = floatingPopups.length - 1; i >= 0; i--) {
+                const fp = floatingPopups[i];
+                fp.y -= 1.3;
+                fp.life--;
+                if (fp.life <= 0) floatingPopups.splice(i, 1);
+            }
+
+            // تحديث عناصر HUD
+            const fuelPct = Math.round((activeCar.fuel / activeCar.maxFuel) * 100);
+            document.getElementById('fuelBarFill').style.width = fuelPct + '%';
+            document.getElementById('fuelPercentText').textContent = fuelPct + '%';
+            document.getElementById('hudDistance').textContent = Math.floor(maxRunMeters);
+            document.getElementById('hudCoins').textContent = saveData.coins.toLocaleString();
+            document.getElementById('hudGems').textContent = saveData.gems;
+
+            const lowFuelBanner = document.getElementById('lowFuelBanner');
+            if (fuelPct <= 22) {
+                lowFuelBanner.classList.remove('hidden');
+                lowFuelBanner.classList.add('flex');
+            } else {
+                lowFuelBanner.classList.add('hidden');
+                lowFuelBanner.classList.remove('flex');
+            }
+
+            // زر دفعة التيربو الطارئة بالماسات
+            const boostBtn = document.getElementById('btnResetCarAlert');
+            if (saveData.gems >= 5 && fuelPct <= 30) {
+                boostBtn.classList.remove('hidden');
+                boostBtn.classList.add('flex');
+            } else {
+                boostBtn.classList.add('hidden');
+                boostBtn.classList.remove('flex');
+            }
+
+            renderDashboardGauges(activeCar.rpm, activeCar.boostCharge);
+
+            if (activeCar.isDead) {
+                setTimeout(triggerGameOverScreen, 500);
+            }
+        }
+
+        function renderWorld() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (!activeCar || !activeTerrain) return;
+
+            // 1. السماء المتدرجة الخاصة بكل عالم
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGrad.addColorStop(0, activeStage.skyTop);
+            skyGrad.addColorStop(1, activeStage.skyBottom);
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // نجوم وكوكب الأرض في عالم القمر
+            if (activeStage.weather === 'stars') {
+                ctx.fillStyle = '#ffffff';
+                for (let i = 0; i < 55; i++) {
+                    const sx = ((i * 211) - activeCar.x * 0.04) % canvas.width;
+                    const sy = (i * 79) % (canvas.height * 0.58);
+                    ctx.fillRect((sx + canvas.width) % canvas.width, sy, 2, 2);
+                }
+                // كوكب الأرض في سماء القمر
+                ctx.fillStyle = '#38bdf8';
+                ctx.beginPath();
+                ctx.arc(canvas.width * 0.8, canvas.height * 0.22, 38, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // سلاسل الجبال الخلفية المتعددة الطبقات (Parallax)
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let x = 0; x <= canvas.width + 80; x += 70) {
+                const wx = x + activeCar.x * 0.18;
+                const y = canvas.height * 0.54 + Math.sin(wx * 0.0028) * 85 + Math.cos(wx * 0.007) * 35;
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.fill();
+
+            // 2. كاميرا ذكية تتبع السيارة مع توسيع الرؤية عند السرعات العالية
+            ctx.save();
+            const camX = activeCar.x - canvas.width * 0.27;
+            const camY = activeCar.y - canvas.height * 0.56;
+            ctx.translate(-camX, -camY);
+
+            // 3. عناصر البيئة الخلفية (أشجار، صبار، أعمدة إنارة)
+            for (let prop of activeTerrain.props) {
+                if (prop.x < camX - 100 || prop.x > camX + canvas.width + 100) continue;
+                ctx.save();
+                ctx.translate(prop.x, prop.y);
+                ctx.scale(prop.scale, prop.scale);
+
+                if (activeStage.id === 'countryside' || activeStage.id === 'arctic') {
+                    ctx.fillStyle = '#451a03';
+                    ctx.fillRect(-5, -24, 10, 24);
+                    ctx.fillStyle = activeStage.id === 'arctic' ? '#e2e8f0' : '#15803d';
+                    ctx.beginPath();
+                    ctx.moveTo(-25, -20);
+                    ctx.lineTo(0, -72);
+                    ctx.lineTo(25, -20);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (activeStage.id === 'desert') {
+                    ctx.fillStyle = '#166534';
+                    ctx.beginPath();
+                    ctx.roundRect(-6, -48, 12, 48, 5);
+                    ctx.roundRect(-18, -34, 12, 7, 3);
+                    ctx.roundRect(-18, -46, 7, 16, 3);
+                    ctx.roundRect(6, -28, 12, 7, 3);
+                    ctx.roundRect(11, -40, 7, 16, 3);
+                    ctx.fill();
+                } else if (activeStage.id === 'highway') {
+                    ctx.fillStyle = '#475569';
+                    ctx.fillRect(-3, -85, 6, 85);
+                    ctx.fillStyle = '#fef08a';
+                    ctx.beginPath();
+                    ctx.arc(10, -85, 7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // 4. رسم التضاريس متعددة الطبقات (صخور سفلية، تربة، وقشرة سطحية)
+            const visPts = activeTerrain.points.filter(p => p.x >= camX - 140 && p.x <= camX + canvas.width + 140);
+            if (visPts.length > 1) {
+                ctx.fillStyle = activeStage.groundDirt;
+                ctx.beginPath();
+                ctx.moveTo(visPts[0].x, camY + canvas.height + 350);
+                for (let p of visPts) ctx.lineTo(p.x, p.y);
+                ctx.lineTo(visPts[visPts.length - 1].x, camY + canvas.height + 350);
+                ctx.closePath();
+                ctx.fill();
+
+                // خطوط التربة الجيولوجية
+                ctx.strokeStyle = activeStage.groundRock;
+                ctx.lineWidth = 18;
+                ctx.beginPath();
+                ctx.moveTo(visPts[0].x, visPts[0].y + 42);
+                for (let p of visPts) ctx.lineTo(p.x, p.y + 42);
+                ctx.stroke();
+
+                // القشرة العلوية
+                ctx.strokeStyle = activeStage.groundTop;
+                ctx.lineWidth = 15;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(visPts[0].x, visPts[0].y);
+                for (let p of visPts) ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+
+                ctx.strokeStyle = activeStage.groundSub;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(visPts[0].x, visPts[0].y + 8);
+                for (let p of visPts) ctx.lineTo(p.x, p.y + 8);
+                ctx.stroke();
+            }
+
+            // 5. رسم الجسور الخشبية المعلقة
+            for (let br of activeTerrain.bridges) {
+                if (br.endX < camX - 100 || br.startX > camX + canvas.width + 100) continue;
+
+                // أعمدة الجسر على الضفتين
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(br.startX - 8, br.planks[0].baseY - 28, 14, 65);
+                ctx.fillRect(br.endX - 6, br.planks[br.planks.length - 1].baseY - 28, 14, 65);
+
+                // حبل الجسر المعلق
+                ctx.strokeStyle = '#92400e';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(br.startX, br.planks[0].baseY - 24);
+                for (let p of br.planks) {
+                    ctx.lineTo(p.x, p.baseY + p.dip - 4);
+                }
+                ctx.lineTo(br.endX, br.planks[br.planks.length - 1].baseY - 24);
+                ctx.stroke();
+
+                // الألواح الخشبية
+                for (let i = 0; i < br.planks.length - 1; i++) {
+                    const p1 = br.planks[i];
+                    const p2 = br.planks[i + 1];
+                    ctx.strokeStyle = '#b45309';
+                    ctx.lineWidth = 10;
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.baseY + p1.dip);
+                    ctx.lineTo(p2.x, p2.baseY + p2.dip);
+                    ctx.stroke();
+                }
+            }
+
+            // 6. لافتات المسافات وبوابات المراحل (Checkpoints)
+            const firstSign = Math.max(100, Math.floor((camX - 200) / 2800) * 100);
+            for (let m = firstSign; m <= firstSign + 200; m += 100) {
+                const sx = 200 + m * 28;
+                if (sx >= camX - 100 && sx <= camX + canvas.width + 100) {
+                    const g = activeTerrain.sampleGround(sx);
+                    const isStageGate = m % 400 === 0;
+                    ctx.save();
+                    ctx.translate(sx, g.y);
+                    ctx.fillStyle = isStageGate ? '#f59e0b' : '#78350f';
+                    ctx.fillRect(-3, -55, 6, 55);
+                    ctx.fillStyle = isStageGate ? '#10b981' : '#f8fafc';
+                    ctx.strokeStyle = '#0f172a';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.roundRect(-34, -78, 68, 26, 6);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '900 12px Cairo';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(isStageGate ? `STAGE ${m}m` : `${m}m`, 0, -61);
+                    ctx.restore();
+                }
+            }
+
+            // لافتة الرقم القياسي السابق على الطريق (BEST RECORD)
+            const bestM = saveData.bestDistances[activeStage.id] || 0;
+            if (bestM > 20) {
+                const bestX = 200 + bestM * 28;
+                if (bestX >= camX - 100 && bestX <= camX + canvas.width + 100) {
+                    const g = activeTerrain.sampleGround(bestX);
+                    ctx.save();
+                    ctx.translate(bestX, g.y);
+                    ctx.fillStyle = '#dc2626';
+                    ctx.fillRect(-3, -64, 6, 64);
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.roundRect(-36, -88, 72, 26, 6);
+                    ctx.fill();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.font = '900 11px Cairo';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`BEST ${bestM}m`, 0, -71);
+                    ctx.restore();
+                }
+            }
+
+            // 7. رسم العملات، عبوات الوقود، والماسات
+            for (let item of activeTerrain.collectibles) {
+                if (item.collected || item.x < camX - 80 || item.x > camX + canvas.width + 80) continue;
+                ctx.save();
+                const bob = Math.sin(Date.now() * 0.005 + item.x) * 4;
+                ctx.translate(item.x, item.y + bob);
+
+                if (item.type === 'fuel') {
+                    ctx.fillStyle = '#ef4444';
+                    ctx.strokeStyle = '#7f1d1d';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.roundRect(-14, -18, 28, 34, 5);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#0f172a';
+                    ctx.fillRect(-6, -14, 12, 5);
+                    ctx.strokeStyle = '#fef08a';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, -2); ctx.lineTo(6, 10);
+                    ctx.moveTo(6, -2); ctx.lineTo(-6, 10);
+                    ctx.stroke();
+                } else if (item.type === 'gem') {
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.strokeStyle = '#0284c7';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -16);
+                    ctx.lineTo(14, 0);
+                    ctx.lineTo(0, 16);
+                    ctx.lineTo(-14, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = '#facc15';
+                    ctx.strokeStyle = '#ca8a04';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#713f12';
+                    ctx.font = '900 10px Cairo';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(item.value, 0, 1);
+                }
+                ctx.restore();
+            }
+
+            // 8. الجزيئات المتطايرة
+            for (let p of particles) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // 9. رسم السيارة والسائق والمساعدات
+            renderVehicle(
+                ctx,
+                activeCar.spec,
+                activeCar.x,
+                activeCar.y,
+                activeCar.angle,
+                activeCar.wheelRot,
+                activeCar.wheelsWorld,
+                activeCar.headAngle
+            );
+
+            // 10. النصوص الطائرة
+            for (let fp of floatingPopups) {
+                ctx.save();
+                ctx.fillStyle = fp.color;
+                ctx.font = '900 18px Cairo';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.fillText(fp.text, fp.x, fp.y);
+                ctx.restore();
+            }
+
+            ctx.restore();
+
+            // 11. تأثيرات الطقس الحية (ثلوج القطب المتجمد أو غبار الصحراء)
+            if (activeStage.weather === 'snow' || activeStage.weather === 'dust') {
+                ctx.fillStyle = activeStage.weather === 'snow' ? 'rgba(255,255,255,0.75)' : 'rgba(253, 230, 138, 0.35)';
+                for (let wp of weatherParticles) {
+                    wp.x = (wp.x + wp.speedX + canvas.width) % canvas.width;
+                    wp.y = (wp.y + wp.speedY) % canvas.height;
+                    ctx.beginPath();
+                    ctx.arc(wp.x, wp.y, wp.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        /********************************************************************
+         * 9. منصة الكراج التفاعلية وتحديث التبويبات (Garage Interactive UI)
+         ********************************************************************/
+        let garageAnimTime = 0;
+        let garageBounceImpulse = 0;
+
+        function renderGaragePreviewCanvas() {
+            if (gameState !== 'GARAGE') return;
+            garageAnimTime += 0.045;
+            garageBounceImpulse *= 0.88;
+
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+            const spec = VEHICLES.find(v => v.id === saveData.selectedVehicle) || VEHICLES[0];
+            const st = STAGES.find(s => s.id === saveData.selectedStage) || STAGES[0];
+
+            // خلفية مصغرة للماب المختار داخل الكراج
+            const bgGrad = previewCtx.createLinearGradient(0, 0, 0, previewCanvas.height);
+            bgGrad.addColorStop(0, st.skyTop);
+            bgGrad.addColorStop(1, st.skyBottom);
+            previewCtx.fillStyle = bgGrad;
+            previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+            // أرضية الماب داخل شاشة الكراج
+            const floorY = previewCanvas.height * 0.80;
+            previewCtx.fillStyle = st.groundDirt;
+            previewCtx.fillRect(0, floorY, previewCanvas.width, previewCanvas.height - floorY);
+            previewCtx.fillStyle = st.groundTop;
+            previewCtx.fillRect(0, floorY, previewCanvas.width, 10);
+
+            const cx = previewCanvas.width / 2;
+            const bounceOffset = Math.sin(garageAnimTime * 4) * garageBounceImpulse;
+            const cy = floorY - spec.wheelRadius - 28 + bounceOffset + Math.sin(garageAnimTime * 1.5) * 2;
+
+            const previewWheels = spec.wheelPositions.map(offsetX => ({
+                offsetX,
+                x: cx + offsetX,
+                y: floorY - spec.wheelRadius
+            }));
+
+            renderVehicle(
+                previewCtx,
+                spec,
+                cx,
+                cy,
+                Math.sin(garageAnimTime) * 0.025,
+                garageAnimTime * 1.4,
+                previewWheels,
+                Math.sin(garageAnimTime * 2) * 0.08,
+                0.86
+            );
+        }
+
+        function refreshGarageUI() {
+            document.getElementById('menuCoins').textContent = saveData.coins.toLocaleString();
+            document.getElementById('menuGems').textContent = saveData.gems;
+
+            const curVehicle = VEHICLES.find(v => v.id === saveData.selectedVehicle) || VEHICLES[0];
+            const curStage = STAGES.find(s => s.id === saveData.selectedStage) || STAGES[0];
+            const carUnlocked = saveData.unlockedVehicles.includes(curVehicle.id);
+            const stageUnlocked = saveData.unlockedStages.includes(curStage.id);
+
+            document.getElementById('previewCarTitle').textContent = curVehicle.name;
+            document.getElementById('previewCarIdTag').textContent = `ID: ${curVehicle.id}`;
+            document.getElementById('previewCarDesc').textContent = curVehicle.desc;
+            document.getElementById('previewStageBadge').innerHTML = `<i class="fas ${curStage.icon} ml-1"></i> ${curStage.name}`;
+
+            // أشرطة الأداء مع تأثير الترقيات
+            const ups = saveData.upgrades[curVehicle.id];
+            document.getElementById('statSpeedBar').style.width = Math.min(100, curVehicle.statSpeed + (ups.engine - 1) * 3) + '%';
+            document.getElementById('statSuspBar').style.width = Math.min(100, curVehicle.statSusp + (ups.suspension - 1) * 3) + '%';
+            document.getElementById('statGripBar').style.width = Math.min(100, curVehicle.statGrip + (ups.tires - 1) * 3) + '%';
+
+            const statusBadge = document.getElementById('previewCarStatus');
+            const mainBtn = document.getElementById('btnMainAction');
+            const mainBtnText = document.getElementById('btnMainActionText');
+
+            if (!carUnlocked) {
+                statusBadge.textContent = `مغلقة (${curVehicle.price} $)`;
+                statusBadge.className = 'text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full';
+                mainBtnText.textContent = `شراء المركبة (${curVehicle.price} $)`;
+                mainBtn.className = 'hcr-btn w-full sm:w-auto min-w-[230px] bg-gradient-to-b from-amber-400 to-orange-600 text-slate-950 font-black text-lg py-3.5 px-6 rounded-2xl border-2 border-amber-200 flex items-center justify-center gap-2';
+            } else if (!stageUnlocked) {
+                statusBadge.textContent = `الماب مغلق (${curStage.price} $)`;
+                statusBadge.className = 'text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1 rounded-full';
+                mainBtnText.textContent = `فتح الماب (${curStage.price} $)`;
+                mainBtn.className = 'hcr-btn w-full sm:w-auto min-w-[230px] bg-gradient-to-b from-sky-400 to-blue-600 text-slate-950 font-black text-lg py-3.5 px-6 rounded-2xl border-2 border-sky-200 flex items-center justify-center gap-2';
+            } else {
+                statusBadge.textContent = 'مملوكة وجاهزة';
+                statusBadge.className = 'text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-full';
+                mainBtnText.textContent = 'ابدأ السباق الآن!';
+                mainBtn.className = 'hcr-btn w-full sm:w-auto min-w-[230px] bg-gradient-to-b from-emerald-400 via-emerald-500 to-green-700 text-slate-950 font-black text-xl py-3.5 px-8 rounded-2xl border-2 border-emerald-200 flex items-center justify-center gap-3';
+            }
+
+            // 1. بناء بطاقات المركبات الثمانية
+            const vGrid = document.getElementById('tabPanelVehicles');
+            vGrid.innerHTML = '';
+            VEHICLES.forEach(v => {
+                const isSelected = v.id === saveData.selectedVehicle;
+                const isOwned = saveData.unlockedVehicles.includes(v.id);
+                const card = document.createElement('button');
+                card.className = `p-3 rounded-2xl border-2 text-right transition flex flex-col justify-between ${
+                    isSelected
+                        ? 'bg-amber-500/20 border-amber-400 text-white shadow-lg'
+                        : 'bg-slate-950/75 border-slate-800 text-slate-300 hover:border-slate-600'
+                }`;
+                card.innerHTML = `
+                    <div class="flex items-center justify-between w-full mb-1.5">
+                        <span class="w-4 h-4 rounded-full border border-white/50" style="background:${v.color}"></span>
+                        <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${
+                            isOwned ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                        }">${isOwned ? 'مملوكة' : v.price + ' $'}</span>
+                    </div>
+                    <div class="font-black text-xs sm:text-sm leading-snug">${v.name}</div>
+                    <div class="text-[10px] text-slate-400 mt-1 font-mono truncate">${v.id}</div>
+                `;
+                card.onclick = () => {
+                    saveData.selectedVehicle = v.id;
+                    garageBounceImpulse = 10;
+                    saveProgress();
+                    refreshGarageUI();
+                };
+                vGrid.appendChild(card);
+            });
+
+            // 2. بناء بطاقات المابات الخمسة
+            const sGrid = document.getElementById('tabPanelStages');
+            sGrid.innerHTML = '';
+            STAGES.forEach(st => {
+                const isSelected = st.id === saveData.selectedStage;
+                const isOwned = saveData.unlockedStages.includes(st.id);
+                const best = saveData.bestDistances[st.id] || 0;
+                const card = document.createElement('button');
+                card.className = `p-3.5 rounded-2xl border-2 text-right transition flex flex-col justify-between ${
+                    isSelected
+                        ? 'bg-sky-500/20 border-amber-400 text-white shadow-lg'
+                        : 'bg-slate-950/75 border-slate-800 text-slate-300 hover:border-slate-600'
+                }`;
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between w-full mb-1">
+                            <span class="font-black text-sm sm:text-base flex items-center gap-2">
+                                <i class="fas ${st.icon} text-amber-400"></i> ${st.name}
+                            </span>
+                            <span class="text-xs font-black px-2.5 py-0.5 rounded-full ${
+                                isOwned ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
+                            }">${isOwned ? `الأفضل: ${best} م` : `${st.price} $`}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">${st.desc}</p>
+                    </div>
+                `;
+                card.onclick = () => {
+                    saveData.selectedStage = st.id;
+                    saveProgress();
+                    refreshGarageUI();
+                };
+                sGrid.appendChild(card);
+            });
+
+            // 3. بناء بطاقات الترقيات الأربعة (حتى 15 مستوى)
+            const tGrid = document.getElementById('tabPanelTune');
+            tGrid.innerHTML = '';
+            UPGRADE_DEFS.forEach(up => {
+                const lvl = ups[up.key];
+                const isMax = lvl >= MAX_UPGRADE_LVL;
+                const cost = Math.floor(up.baseCost * Math.pow(1.32, lvl - 1));
+                const canBuy = carUnlocked && !isMax && saveData.coins >= cost;
+
+                const card = document.createElement('div');
+                card.className = 'bg-slate-950/85 border border-slate-800 rounded-2xl p-3 flex flex-col justify-between';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-white font-black text-xs sm:text-sm flex items-center gap-1.5">
+                                <i class="fas ${up.icon} text-amber-400"></i> ${up.name}
+                            </span>
+                            <span class="text-xs font-black text-sky-400">LVL ${lvl}/${MAX_UPGRADE_LVL}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mb-2">${up.desc}</p>
+                        <div class="grid grid-cols-15 gap-0.5 mb-2.5 h-2 bg-slate-900 rounded-full overflow-hidden p-0.5">
+                            <div class="h-full bg-gradient-to-l from-amber-400 to-emerald-400 rounded-full" style="width: ${(lvl / MAX_UPGRADE_LVL) * 100}%"></div>
+                        </div>
+                    </div>
+                    <button class="btn-buy-upgrade w-full py-2 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition ${
+                        !carUnlocked
+                            ? 'bg-slate-900 text-slate-500 cursor-not-allowed'
+                            : isMax
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                            : canBuy
+                            ? 'bg-amber-400 hover:bg-amber-300 text-slate-950 shadow'
+                            : 'bg-slate-800 text-slate-400 cursor-not-allowed'
+                    }">
+                        ${
+                            !carUnlocked
+                                ? '<i class="fas fa-lock"></i> اشترِ المركبة أولاً'
+                                : isMax
+                                ? '<i class="fas fa-check-circle"></i> الحد الأقصى MAX'
+                                : `<i class="fas fa-coins"></i> ترقية (${cost} $)`
+                        }
+                    </button>
+                `;
+
+                const btn = card.querySelector('.btn-buy-upgrade');
+                if (carUnlocked && !isMax) {
+                    btn.onclick = () => {
+                        if (saveData.coins >= cost) {
+                            saveData.coins -= cost;
+                            saveData.upgrades[curVehicle.id][up.key]++;
+                            garageBounceImpulse = 12;
+                            sound.playUpgrade();
+                            saveProgress();
+                            refreshGarageUI();
+                        }
+                    };
+                }
+                tGrid.appendChild(card);
+            });
+        }
+
+        /********************************************************************
+         * 10. أحداث الأزرار، التبويبات، ولوحة المفاتيح واللمس
+         ********************************************************************/
+        const pedalGas = document.getElementById('pedalGas');
+        const pedalBrake = document.getElementById('pedalBrake');
+
+        function setGasState(val) {
+            inputGas = val;
+            pedalGas.classList.toggle('pressed', val);
+        }
+        function setBrakeState(val) {
+            inputBrake = val;
+            pedalBrake.classList.toggle('pressed', val);
+        }
+
+        ['mousedown', 'touchstart'].forEach(ev => {
+            pedalGas.addEventListener(ev, e => { e.preventDefault(); setGasState(true); });
+            pedalBrake.addEventListener(ev, e => { e.preventDefault(); setBrakeState(true); });
+        });
+        ['mouseup', 'mouseleave', 'touchend', 'touchcancel'].forEach(ev => {
+            pedalGas.addEventListener(ev, e => { e.preventDefault(); setGasState(false); });
+            pedalBrake.addEventListener(ev, e => { e.preventDefault(); setBrakeState(false); });
+        });
+
+        window.addEventListener('keydown', e => {
+            if (gameState !== 'PLAYING') return;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ArrowUp' || e.code === 'KeyW') setGasState(true);
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'ArrowDown' || e.code === 'KeyS') setBrakeState(true);
+            if (e.code === 'Escape' || e.code === 'KeyP') togglePauseState();
+        });
+        window.addEventListener('keyup', e => {
+            if (e.code === 'ArrowRight' || e.code === 'KeyD' || e.code === 'ArrowUp' || e.code === 'KeyW') setGasState(false);
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA' || e.code === 'ArrowDown' || e.code === 'KeyS') setBrakeState(false);
+        });
+
+        // تبديل تبويبات الكراج الثلاثة
+        document.querySelectorAll('.garage-tab-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.garage-tab-btn').forEach(b => {
+                    b.className = 'garage-tab-btn py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-base flex items-center justify-center gap-2 transition bg-slate-800 text-slate-300 hover:bg-slate-700';
+                });
+                btn.className = 'garage-tab-btn py-2.5 sm:py-3 rounded-xl font-black text-xs sm:text-base flex items-center justify-center gap-2 transition bg-amber-500 text-slate-950 shadow-lg';
+
+                const tab = btn.getAttribute('data-tab');
+                document.getElementById('tabPanelVehicles').classList.toggle('hidden', tab !== 'vehicles');
+                document.getElementById('tabPanelStages').classList.toggle('hidden', tab !== 'stages');
+                document.getElementById('tabPanelTune').classList.toggle('hidden', tab !== 'tune');
+            };
+        });
+
+        // أزرار تقليب المركبات واختبار المساعدات في الكراج
+        document.getElementById('btnPrevVehicle').onclick = () => {
+            const idx = VEHICLES.findIndex(v => v.id === saveData.selectedVehicle);
+            saveData.selectedVehicle = VEHICLES[(idx - 1 + VEHICLES.length) % VEHICLES.length].id;
+            garageBounceImpulse = 10;
+            saveProgress();
+            refreshGarageUI();
+        };
+        document.getElementById('btnNextVehicle').onclick = () => {
+            const idx = VEHICLES.findIndex(v => v.id === saveData.selectedVehicle);
+            saveData.selectedVehicle = VEHICLES[(idx + 1) % VEHICLES.length].id;
+            garageBounceImpulse = 10;
+            saveProgress();
+            refreshGarageUI();
+        };
+        document.getElementById('btnBounceTest').onclick = () => {
+            garageBounceImpulse = 16;
+            sound.playFuel();
+        };
+
+        // الزر الرئيسي (بدء السباق أو شراء السيارة أو فتح الماب)
+        document.getElementById('btnMainAction').onclick = () => {
+            const curVehicle = VEHICLES.find(v => v.id === saveData.selectedVehicle);
+            const curStage = STAGES.find(s => s.id === saveData.selectedStage);
+
+            if (!saveData.unlockedVehicles.includes(curVehicle.id)) {
+                if (saveData.coins >= curVehicle.price) {
+                    saveData.coins -= curVehicle.price;
+                    saveData.unlockedVehicles.push(curVehicle.id);
+                    sound.playUpgrade();
+                    saveProgress();
+                    refreshGarageUI();
+                }
+                return;
+            }
+            if (!saveData.unlockedStages.includes(curStage.id)) {
+                if (saveData.coins >= curStage.price) {
+                    saveData.coins -= curStage.price;
+                    saveData.unlockedStages.push(curStage.id);
+                    sound.playUpgrade();
+                    saveProgress();
+                    refreshGarageUI();
+                }
+                return;
+            }
+            startRaceSession();
+        };
+
+        // زر الهدية الفورية لتجربة كل السيارات والمابات
+        document.getElementById('btnFreeGift').onclick = () => {
+            saveData.coins += 15000;
+            saveData.gems += 10;
+            sound.playGem();
+            saveProgress();
+            refreshGarageUI();
+        };
+
+        // زر التيربو الفوري أثناء اللعب (يمد الوقود ويدفع السيارة)
+        document.getElementById('btnResetCarAlert').onclick = () => {
+            if (activeCar && saveData.gems >= 5) {
+                saveData.gems -= 5;
+                activeCar.fuel = activeCar.maxFuel;
+                activeCar.vx = Math.max(activeCar.vx + 8, 12);
+                sound.playGem();
+                pushStuntBanner('دفعة نيترو + وقود كامل!', 0, 'bg-cyan-400 text-slate-950');
+                saveProgress();
+            }
+        };
+
+        // كتم الصوت
+        document.getElementById('btnSoundToggle').onclick = () => {
+            sound.muted = !sound.muted;
+            document.getElementById('soundIcon').className = sound.muted
+                ? 'fas fa-volume-xmark text-lg text-red-400'
+                : 'fas fa-volume-high text-lg text-amber-400';
+            if (sound.muted) sound.stopEngine();
+        };
+
+        function togglePauseState() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                sound.stopEngine();
+                const m = document.getElementById('pauseModal');
+                m.classList.remove('hidden');
+                m.classList.add('flex');
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                sound.startEngine();
+                const m = document.getElementById('pauseModal');
+                m.classList.add('hidden');
+                m.classList.remove('flex');
+            }
+        }
+
+        function returnToGarageScreen() {
+            gameState = 'GARAGE';
+            sound.stopEngine();
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('hud').classList.remove('flex');
+            document.getElementById('pauseModal').classList.add('hidden');
+            document.getElementById('pauseModal').classList.remove('flex');
+            document.getElementById('gameOverModal').classList.add('hidden');
+            document.getElementById('gameOverModal').classList.remove('flex');
+            document.getElementById('garageScreen').classList.remove('hidden');
+            resizeAll();
+            refreshGarageUI();
+        }
+
+        document.getElementById('btnPauseGame').onclick = togglePauseState;
+        document.getElementById('btnResumeRace').onclick = togglePauseState;
+        document.getElementById('btnRestartRacePause').onclick = startRaceSession;
+        document.getElementById('btnBackToGaragePause').onclick = returnToGarageScreen;
+        document.getElementById('btnGoRetry').onclick = startRaceSession;
+        document.getElementById('btnGoGarage').onclick = returnToGarageScreen;
+
+        // الحلقة الرئيسية
+        function masterLoop() {
+            if (gameState === 'GARAGE') {
+                renderGaragePreviewCanvas();
+            } else if (gameState === 'PLAYING') {
+                updatePlayingState();
+                renderWorld();
+            } else if (gameState === 'PAUSED' || gameState === 'GAMEOVER') {
+                renderWorld();
+            }
+            requestAnimationFrame(masterLoop);
+        }
+
+        window.onload = () => {
+            resizeAll();
+            refreshGarageUI();
+            masterLoop();
+        };
+    </script>
+</body>
+</html>

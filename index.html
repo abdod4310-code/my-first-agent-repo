@@ -1,0 +1,2553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CYBERORB: Quantum Drift - Physics Puzzle</title>
+  <style>
+    :root {
+      --bg-dark: #050711;
+      --panel-bg: rgba(11, 16, 33, 0.9);
+      --panel-border: rgba(0, 240, 255, 0.28);
+      --panel-glow: rgba(0, 240, 255, 0.12);
+      --cyan: #00f0ff;
+      --cyan-glow: 0 0 12px rgba(0, 240, 255, 0.6);
+      --magenta: #ff007f;
+      --magenta-glow: 0 0 12px rgba(255, 0, 127, 0.6);
+      --amber: #ffb700;
+      --amber-glow: 0 0 12px rgba(255, 183, 0, 0.6);
+      --green: #00ff88;
+      --green-glow: 0 0 12px rgba(0, 255, 136, 0.6);
+      --danger: #ff2a55;
+      --danger-glow: 0 0 12px rgba(255, 42, 85, 0.6);
+      --purple: #a855f7;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      --font-mono: 'Consolas', 'Courier New', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-family);
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Outer Game Container */
+    #game-container {
+      position: relative;
+      width: 1000px;
+      height: 650px;
+      max-width: 98vw;
+      max-height: 94vh;
+      aspect-ratio: 1000 / 650;
+      background: radial-gradient(circle at 50% 25%, #0c142b 0%, #04060d 100%);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95), 0 0 30px rgba(0, 240, 255, 0.15);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top HUD Header */
+    #hud-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 52px;
+      padding: 0 18px;
+      background: linear-gradient(180deg, rgba(8, 12, 25, 0.96) 0%, rgba(8, 12, 25, 0.75) 100%);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: conic-gradient(from 0deg, var(--cyan), var(--magenta), var(--amber), var(--cyan));
+      box-shadow: var(--cyan-glow);
+      animation: spinLogo 8s linear infinite;
+    }
+
+    @keyframes spinLogo {
+      100% { transform: rotate(360deg); }
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: var(--cyan-glow);
+    }
+
+    .brand-title span {
+      color: var(--cyan);
+    }
+
+    .level-badge {
+      font-size: 12px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      color: var(--cyan);
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 1px;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .status-edit {
+      background: rgba(0, 240, 255, 0.15);
+      color: var(--cyan);
+      border: 1px solid rgba(0, 240, 255, 0.4);
+    }
+
+    .status-running {
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--green);
+      border: 1px solid rgba(0, 255, 136, 0.4);
+      animation: pulseGreen 1.5s infinite;
+    }
+
+    .status-failed {
+      background: rgba(255, 42, 85, 0.18);
+      color: var(--danger);
+      border: 1px solid rgba(255, 42, 85, 0.45);
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 0.8; }
+      50% { opacity: 1; filter: drop-shadow(0 0 6px var(--green)); }
+    }
+
+    .hud-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      background: rgba(16, 24, 48, 0.85);
+      color: var(--text-main);
+      border: 1px solid rgba(0, 240, 255, 0.28);
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.18s ease;
+      outline: none;
+    }
+
+    .btn:hover {
+      background: rgba(0, 240, 255, 0.18);
+      border-color: var(--cyan);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.3) 0%, rgba(0, 140, 255, 0.5) 100%);
+      border-color: var(--cyan);
+      color: #fff;
+      box-shadow: var(--cyan-glow);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.5) 0%, rgba(0, 160, 255, 0.7) 100%);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.7);
+    }
+
+    .btn-danger {
+      background: rgba(255, 42, 85, 0.2);
+      border-color: rgba(255, 42, 85, 0.5);
+      color: #ff99aa;
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 42, 85, 0.35);
+      border-color: var(--danger);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(255, 42, 85, 0.5);
+    }
+
+    .btn-icon {
+      padding: 6px 9px;
+      font-size: 13px;
+    }
+
+    /* Main Viewport */
+    #canvas-wrapper {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: crosshair;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Hint Pill */
+    #hint-pill {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(11, 16, 33, 0.88);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 18px;
+      padding: 5px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      z-index: 15;
+      pointer-events: none;
+      backdrop-filter: blur(5px);
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    #hint-pill b {
+      color: var(--cyan);
+    }
+
+    /* Bottom Toolbox Dock */
+    #toolbox-dock {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), var(--panel-glow);
+    }
+
+    .tool-btn {
+      position: relative;
+      background: rgba(18, 26, 52, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 8px;
+      padding: 7px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      cursor: pointer;
+      min-width: 90px;
+      transition: all 0.2s ease;
+      color: var(--text-main);
+    }
+
+    .tool-btn:hover:not(.disabled) {
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.16);
+      box-shadow: var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+
+    .tool-btn.active {
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.6);
+      transform: translateY(-2px);
+    }
+
+    .tool-btn.disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.1);
+      filter: grayscale(0.8);
+    }
+
+    .tool-icon {
+      font-size: 19px;
+      line-height: 1;
+    }
+
+    .tool-name {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .tool-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      background: var(--cyan);
+      color: #030712;
+      font-size: 10px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 6px var(--cyan);
+    }
+
+    .tool-badge.zero {
+      background: #475569;
+      color: #94a3b8;
+      box-shadow: none;
+    }
+
+    .dock-divider {
+      width: 1px;
+      height: 36px;
+      background: rgba(0, 240, 255, 0.2);
+    }
+
+    .dock-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Inspector Overlay */
+    #inspector-overlay {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      z-index: 25;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 220px;
+    }
+
+    #inspector-overlay.show {
+      display: flex;
+    }
+
+    .inspector-title {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      padding-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .inspector-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .inspector-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .inspector-btn-group {
+      display: flex;
+      gap: 5px;
+    }
+
+    .mini-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      transition: all 0.15s ease;
+    }
+
+    .mini-btn:hover {
+      background: rgba(0, 240, 255, 0.25);
+      border-color: var(--cyan);
+    }
+
+    /* Modals */
+    .modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 6, 14, 0.88);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: linear-gradient(145deg, rgba(14, 21, 44, 0.96) 0%, rgba(8, 12, 24, 0.98) 100%);
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.35), inset 0 0 20px rgba(0, 240, 255, 0.1);
+      border-radius: 14px;
+      padding: 24px 30px;
+      max-width: 460px;
+      width: 90%;
+      text-align: center;
+      position: relative;
+      transform: scale(0.92);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .modal-backdrop.active .modal-card {
+      transform: scale(1);
+    }
+
+    .modal-glow-tag {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .modal-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: var(--cyan-glow);
+      margin-bottom: 10px;
+    }
+
+    .modal-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .victory-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+      background: rgba(0, 240, 255, 0.05);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .stat-box {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+    }
+
+    .stat-value {
+      font-size: 16px;
+      font-family: var(--font-mono);
+      font-weight: 800;
+      color: var(--cyan);
+      text-shadow: var(--cyan-glow);
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Level Selector Grid */
+    .level-select-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .level-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 8px;
+      padding: 12px 8px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+
+    .level-card:hover {
+      background: rgba(0, 240, 255, 0.15);
+      border-color: var(--cyan);
+      box-shadow: var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+
+    .level-card.active {
+      border-color: var(--cyan);
+      background: rgba(0, 240, 255, 0.22);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.45);
+    }
+
+    .level-card-num {
+      font-size: 16px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+    }
+
+    .level-card-name {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #fff;
+    }
+
+    .level-card-diff {
+      font-size: 9px;
+      color: var(--amber);
+      letter-spacing: 1px;
+    }
+
+    @media (max-width: 800px) {
+      #hud-top {
+        height: 48px;
+        padding: 0 10px;
+      }
+      .brand-title {
+        font-size: 13px;
+      }
+      .btn {
+        padding: 5px 8px;
+        font-size: 10px;
+      }
+      #toolbox-dock {
+        padding: 6px 10px;
+        gap: 8px;
+        bottom: 8px;
+      }
+      .tool-btn {
+        min-width: 74px;
+        padding: 6px 8px;
+      }
+      .tool-name {
+        font-size: 9px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <!-- Top HUD Header -->
+    <header id="hud-top">
+      <div class="brand-group">
+        <div class="brand-logo"></div>
+        <div class="brand-title">CYBER<span>ORB</span></div>
+        <div class="level-badge" id="level-display">LVL 01: NEON VALLEY</div>
+        <div class="status-badge status-edit" id="status-display">EDIT MODE</div>
+      </div>
+
+      <div class="hud-controls-group">
+        <button class="btn btn-icon" id="btn-sound" title="Toggle Sound (M)">🔊</button>
+        <button class="btn btn-icon" id="btn-levels" title="Level Select">📑 Sectors</button>
+        <button class="btn btn-icon" id="btn-help" title="Mission Manual">❓ Guide</button>
+        <button class="btn btn-danger" id="btn-reset" title="Reset Simulation (R or Space)">↺ Reset</button>
+        <button class="btn btn-primary" id="btn-launch" title="Launch Simulation (Space)">▶ Launch</button>
+      </div>
+    </header>
+
+    <!-- Canvas Viewport -->
+    <main id="canvas-wrapper">
+      <canvas id="game-canvas"></canvas>
+
+      <!-- Floating Hint Pill -->
+      <div id="hint-pill">Select a tool from the dock below, then click on the grid to deploy.</div>
+
+      <!-- Floating Inspector for selected element -->
+      <div id="inspector-overlay">
+        <div class="inspector-title">
+          <span id="inspect-name">ELEMENT CONFIG</span>
+          <button class="mini-btn" id="inspect-close">✕</button>
+        </div>
+        <div class="inspector-controls">
+          <div class="inspector-row">
+            <span>Orientation:</span>
+            <div class="inspector-btn-group">
+              <button class="mini-btn" id="inspect-rot-ccw" title="Rotate CCW">↺ -15°</button>
+              <button class="mini-btn" id="inspect-rot-cw" title="Rotate CW">↻ +15°</button>
+            </div>
+          </div>
+          <div class="inspector-row" id="inspect-mode-row" style="display:none;">
+            <span>Field Polarity:</span>
+            <button class="mini-btn" id="inspect-toggle-mode">Attract</button>
+          </div>
+          <div class="inspector-row" style="margin-top:4px;">
+            <span>Action:</span>
+            <button class="mini-btn" id="inspect-remove" style="color:var(--danger); border-color:var(--danger);">🗑 Delete</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Toolbox Dock -->
+    <nav id="toolbox-dock">
+      <div class="tool-btn" id="tool-bouncer" data-type="bouncer" title="Angled Bouncer: Deflects orb with high rebound boost">
+        <div class="tool-badge" id="badge-bouncer">3</div>
+        <div class="tool-icon">╱</div>
+        <div class="tool-name">Bouncer</div>
+      </div>
+
+      <div class="tool-btn" id="tool-gravity" data-type="gravity" title="Gravity Well: Continuous gravitational pull or push">
+        <div class="tool-badge" id="badge-gravity">0</div>
+        <div class="tool-icon">◎</div>
+        <div class="tool-name">Grav-Well</div>
+      </div>
+
+      <div class="tool-btn" id="tool-portal" data-type="portal" title="Quantum Teleporters: Enters portal A, emerges from portal B">
+        <div class="tool-badge" id="badge-portal">0</div>
+        <div class="tool-icon">✦</div>
+        <div class="tool-name">Portal Pair</div>
+      </div>
+
+      <div class="dock-divider"></div>
+
+      <div class="dock-actions">
+        <button class="btn btn-icon" id="btn-clear-all" title="Recall all deployed items to inventory">Clear All</button>
+      </div>
+    </nav>
+
+    <!-- Victory Modal -->
+    <div class="modal-backdrop" id="modal-victory">
+      <div class="modal-card">
+        <div class="modal-glow-tag" id="victory-tag">MISSION ACCOMPLISHED</div>
+        <div class="modal-title" id="victory-title">PORTAL SYNCHRONIZED</div>
+        <div class="modal-desc" id="victory-desc">The quantum orb has successfully reached the destination portal!</div>
+
+        <div class="victory-stats">
+          <div class="stat-box">
+            <span class="stat-label">Flight Time</span>
+            <span class="stat-value" id="stat-time">3.4s</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Bounces</span>
+            <span class="stat-value" id="stat-bounces">4</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Attempts</span>
+            <span class="stat-value" id="stat-attempts">1</span>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button class="btn" id="btn-victory-replay">↺ Replay</button>
+          <button class="btn btn-primary" id="btn-victory-next">Next Sector ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Level Select Modal -->
+    <div class="modal-backdrop" id="modal-levels">
+      <div class="modal-card">
+        <div class="modal-glow-tag">SECTOR INDEX</div>
+        <div class="modal-title">SELECT SECTOR</div>
+        <div class="modal-desc">Choose a test chamber layout to initialize:</div>
+
+        <div class="level-select-grid">
+          <div class="level-card active" data-lvl="0">
+            <div class="level-card-num">01</div>
+            <div class="level-card-name">Neon Valley</div>
+            <div class="level-card-diff">★☆☆ NOVICE</div>
+          </div>
+          <div class="level-card" data-lvl="1">
+            <div class="level-card-num">02</div>
+            <div class="level-card-name">Singularity</div>
+            <div class="level-card-diff">★★☆ ADVANCED</div>
+          </div>
+          <div class="level-card" data-lvl="2">
+            <div class="level-card-num">03</div>
+            <div class="level-card-name">Matrix Core</div>
+            <div class="level-card-diff">★★★ EXPERT</div>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button class="btn" id="btn-close-levels">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help / Instructions Modal -->
+    <div class="modal-backdrop" id="modal-help">
+      <div class="modal-card" style="max-width: 500px; text-align: left;">
+        <div class="modal-glow-tag" style="text-align: center;">FLIGHT INSTRUCTIONS</div>
+        <div class="modal-title" style="text-align: center; font-size: 20px;">MISSION MANUAL</div>
+        
+        <div class="modal-desc" style="font-size: 12px; margin-bottom: 14px;">
+          Guide the bouncing <b>Energy Orb</b> from the <b>Cannon</b> into the glowing <b>Portal Target</b>.
+        </div>
+
+        <ul style="font-size: 12px; line-height: 1.8; color: var(--text-muted); margin-left: 20px; margin-bottom: 18px;">
+          <li><b>╱ Angled Bouncer:</b> Adds high restitution and spring deflection. Click and drag to place. Use rotation gizmo, mouse wheel, or buttons to align angles.</li>
+          <li><b>◎ Gravity Well:</b> Continuous gravitational field. Click to toggle between <b>Attract (Cyan Pull)</b> and <b>Repel (Amber Push)</b>.</li>
+          <li><b>✦ Teleporter Pair:</b> Orb enters Portal A and emerges from Portal B with preserved momentum aligned to Portal B's facing direction.</li>
+          <li><b>⚠️ Hazards:</b> Red spikes and moving laser drones destroy the orb on contact.</li>
+          <li><b>Hotkeys:</b> <code>Space</code> Launch/Reset, <code>R</code> Rotate item, <code>Wheel</code> Scroll rotate, <code>Del</code> Delete item, <code>M</code> Mute.</li>
+        </ul>
+
+        <div class="modal-buttons">
+          <button class="btn btn-primary" id="btn-close-help" style="width: 100%;">Understood, Let's Play</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ==========================================================================
+       CYBERORB: QUANTUM DRIFT - COMPLETE GAME ENGINE & SCRIPTS
+       Vanilla JS + HTML5 Canvas + Web Audio API (Zero External Dependencies)
+       ========================================================================== */
+
+    // --- Audio Engine (Synthesized via Web Audio API) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.initialized = false;
+        this.ambientGain = null;
+        this.ambientOsc = null;
+      }
+
+      init() {
+        if (!this.initialized) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+            this.initialized = true;
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      toggleMute() {
+        this.muted = !this.muted;
+        if (this.muted && this.ambientGain) {
+          this.ambientGain.gain.setValueAtTime(0, this.ctx.currentTime);
+        }
+        return this.muted;
+      }
+
+      playLaunch() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.22);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+
+      playBounce(velocityMagnitude = 1) {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        const baseFreq = Math.min(880, Math.max(220, 260 + velocityMagnitude * 35));
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(baseFreq * 1.5, now);
+        osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.12);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.14);
+      }
+
+      playGravityHum() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.linearRampToValueAtTime(280, now + 0.12);
+        osc.frequency.linearRampToValueAtTime(120, now + 0.26);
+
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+
+      playPortalWarp() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(260, now);
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.28);
+
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      }
+
+      playExplosion() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.45;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.12));
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(800, now);
+        filter.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.5, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+      }
+
+      playVictory() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const notes = [440, 554.37, 659.25, 880, 1108.73];
+        const now = this.ctx.currentTime;
+
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const startTime = now + idx * 0.08;
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          gain.gain.setValueAtTime(0.2, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + 0.4);
+        });
+      }
+
+      playClick() {
+        if (this.muted || !this.ctx) return;
+        this.init();
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, now);
+        osc.frequency.exponentialRampToValueAtTime(900, now + 0.04);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.04);
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // --- Vector Math Helpers ---
+    const Vec = {
+      create: (x = 0, y = 0) => ({ x, y }),
+      add: (a, b) => ({ x: a.x + b.x, y: a.y + b.y }),
+      sub: (a, b) => ({ x: a.x - b.x, y: a.y - b.y }),
+      mult: (a, s) => ({ x: a.x * s, y: a.y * s }),
+      dot: (a, b) => a.x * b.x + a.y * b.y,
+      len: (a) => Math.hypot(a.x, a.y),
+      norm: (a) => {
+        const l = Math.hypot(a.x, a.y);
+        return l > 0 ? { x: a.x / l, y: a.y / l } : { x: 0, y: 0 };
+      },
+      dist: (a, b) => Math.hypot(a.x - b.x, a.y - b.y),
+      rotate: (v, angle) => {
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        return { x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos };
+      }
+    };
+
+    // --- Level Definitions ---
+    const LEVELS = [
+      {
+        id: 0,
+        name: "Neon Valley",
+        subtitle: "The Basics of Vector Deflection",
+        inventory: { bouncer: 3, gravity: 0, portal: 0 },
+        spawn: { x: 90, y: 140, angle: 25, speed: 7.2 },
+        target: { x: 880, y: 480, radius: 28 },
+        walls: [
+          { x: 0, y: 0, w: 1000, h: 14 },
+          { x: 0, y: 636, w: 1000, h: 14 },
+          { x: 0, y: 0, w: 14, h: 650 },
+          { x: 986, y: 0, w: 14, h: 650 },
+          // Central high barrier
+          { x: 480, y: 160, w: 32, h: 480 },
+          // Platform over target
+          { x: 740, y: 340, w: 250, h: 22 }
+        ],
+        hazards: [
+          { type: 'spikes', x: 20, y: 605, w: 460, h: 32 },
+          { type: 'spikes', x: 512, y: 605, w: 220, h: 32 }
+        ],
+        movingHazards: []
+      },
+      {
+        id: 1,
+        name: "Singularity Pass",
+        subtitle: "Gravitational Slingshot & Sweeping Drone",
+        inventory: { bouncer: 2, gravity: 2, portal: 0 },
+        spawn: { x: 90, y: 520, angle: -65, speed: 7.5 },
+        target: { x: 900, y: 160, radius: 28 },
+        walls: [
+          { x: 0, y: 0, w: 1000, h: 14 },
+          { x: 0, y: 636, w: 1000, h: 14 },
+          { x: 0, y: 0, w: 14, h: 650 },
+          { x: 986, y: 0, w: 14, h: 650 },
+          // Overhanging shield
+          { x: 300, y: 220, w: 400, h: 24 },
+          // Right chamber wall with narrow navigation slit
+          { x: 780, y: 0, w: 26, h: 350 },
+          { x: 780, y: 470, w: 26, h: 170 }
+        ],
+        hazards: [
+          { type: 'spikes', x: 14, y: 610, w: 972, h: 26 }
+        ],
+        movingHazards: [
+          {
+            type: 'drone',
+            p1: { x: 500, y: 280 },
+            p2: { x: 500, y: 560 },
+            radius: 20,
+            speed: 0.025,
+            progress: 0
+          }
+        ]
+      },
+      {
+        id: 2,
+        name: "Matrix Core",
+        subtitle: "Quantum Teleportation & Laser Labyrinth",
+        inventory: { bouncer: 2, gravity: 1, portal: 1 },
+        spawn: { x: 90, y: 130, angle: 10, speed: 6.8 },
+        target: { x: 900, y: 530, radius: 28 },
+        walls: [
+          { x: 0, y: 0, w: 1000, h: 14 },
+          { x: 0, y: 636, w: 1000, h: 14 },
+          { x: 0, y: 0, w: 14, h: 650 },
+          { x: 986, y: 0, w: 14, h: 650 },
+          // Impenetrable blast doors separating sectors
+          { x: 330, y: 0, w: 24, h: 420 },
+          { x: 650, y: 230, w: 24, h: 410 },
+          { x: 650, y: 0, w: 24, h: 140 }
+        ],
+        hazards: [
+          { type: 'spikes', x: 20, y: 610, w: 310, h: 26 },
+          { type: 'spikes', x: 354, y: 14, w: 296, h: 26 },
+          { type: 'spikes', x: 674, y: 610, w: 312, h: 26 }
+        ],
+        movingHazards: [
+          {
+            type: 'drone',
+            p1: { x: 400, y: 200 },
+            p2: { x: 600, y: 200 },
+            radius: 18,
+            speed: 0.035,
+            progress: 0
+          },
+          {
+            type: 'drone',
+            p1: { x: 740, y: 460 },
+            p2: { x: 930, y: 460 },
+            radius: 18,
+            speed: 0.028,
+            progress: 0.5
+          }
+        ]
+      }
+    ];
+
+    // --- Particle System ---
+    class ParticlePool {
+      constructor() {
+        this.particles = [];
+      }
+
+      spawn(x, y, vx, vy, color, size, life, decay, type = 'dot') {
+        this.particles.push({
+          x, y, vx, vy, color, size, life, maxLife: life, decay, type
+        });
+      }
+
+      createBurst(x, y, count = 20, color = '#00f0ff', speed = 4.5) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = (Math.random() * 0.8 + 0.2) * speed;
+          const vx = Math.cos(angle) * spd;
+          const vy = Math.sin(angle) * spd;
+          const size = Math.random() * 3 + 1.5;
+          const life = Math.random() * 0.35 + 0.25;
+          this.spawn(x, y, vx, vy, color, size, life, 1 / (life * 60), 'spark');
+        }
+      }
+
+      createExplosion(x, y) {
+        for (let i = 0; i < 45; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = Math.random() * 8 + 2;
+          const colors = ['#ff0055', '#ff4400', '#ffb700', '#ffffff'];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          const size = Math.random() * 4 + 2;
+          const life = Math.random() * 0.55 + 0.35;
+          this.spawn(x, y, Math.cos(angle) * spd, Math.sin(angle) * spd, color, size, life, 1 / (life * 60), 'spark');
+        }
+        this.spawn(x, y, 0, 0, '#ff2a55', 10, 0.45, 1 / (0.45 * 60), 'ring');
+      }
+
+      createVictoryBurst(x, y) {
+        for (let i = 0; i < 75; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = Math.random() * 11 + 3;
+          const colors = ['#00f0ff', '#00ff88', '#ff007f', '#ffb700', '#ffffff'];
+          const color = colors[Math.floor(Math.random() * colors.length)];
+          const size = Math.random() * 4.5 + 2;
+          const life = Math.random() * 0.85 + 0.45;
+          this.spawn(x, y, Math.cos(angle) * spd, Math.sin(angle) * spd, color, size, life, 1 / (life * 60), 'star');
+        }
+        this.spawn(x, y, 0, 0, '#00f0ff', 16, 0.6, 1 / (0.6 * 60), 'ring');
+      }
+
+      update() {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= p.decay;
+          if (p.type === 'ring') {
+            p.size += 6.5;
+          } else {
+            p.vx *= 0.96;
+            p.vy *= 0.96;
+          }
+          if (p.life <= 0) {
+            this.particles.splice(i, 1);
+          }
+        }
+      }
+
+      draw(ctx) {
+        ctx.save();
+        for (const p of this.particles) {
+          const alpha = Math.max(0, p.life);
+          ctx.globalAlpha = alpha;
+          if (p.type === 'ring') {
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.shadowColor = p.color;
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+      }
+    }
+
+    // --- Main Game Engine ---
+    class Game {
+      constructor() {
+        this.canvas = document.getElementById('game-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.container = document.getElementById('game-container');
+        this.particles = new ParticlePool();
+
+        // Game State
+        this.currentLevelIndex = 0;
+        this.state = 'EDIT'; // 'EDIT', 'RUNNING', 'FAILED', 'VICTORY'
+        this.attempts = 1;
+        this.bounceCount = 0;
+        this.startTime = 0;
+        this.runDuration = 0;
+
+        // Physics constants
+        this.gravity = 0.22;
+        this.orbRadius = 9;
+
+        // Orb object
+        this.orb = {
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          trail: [],
+          active: true,
+          portalCooldown: 0
+        };
+
+        // Inventory & Elements
+        this.placedItems = [];
+        this.nextItemId = 1;
+        this.activeTool = null; // null or 'bouncer', 'gravity', 'portal'
+        this.selectedItem = null;
+
+        // Interaction state
+        this.isDragging = false;
+        this.isRotating = false;
+        this.dragOffset = { x: 0, y: 0 };
+        this.pointerPos = { x: 0, y: 0 };
+        this.hoveredItem = null;
+        this.screenShake = 0;
+
+        // Setup
+        this.initCanvasSize();
+        this.initDOM();
+        this.loadLevel(this.currentLevelIndex);
+        this.startLoop();
+      }
+
+      initCanvasSize() {
+        const rect = this.canvas.getBoundingClientRect();
+        this.dpr = window.devicePixelRatio || 1;
+        this.canvas.width = 1000 * this.dpr;
+        this.canvas.height = 650 * this.dpr;
+        this.ctx.scale(this.dpr, this.dpr);
+
+        window.addEventListener('resize', () => {
+          const r = this.canvas.getBoundingClientRect();
+          this.dpr = window.devicePixelRatio || 1;
+          this.canvas.width = 1000 * this.dpr;
+          this.canvas.height = 650 * this.dpr;
+          this.ctx.scale(this.dpr, this.dpr);
+        });
+      }
+
+      getCanvasCoordinates(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+          x: (clientX - rect.left) * (1000 / rect.width),
+          y: (clientY - rect.top) * (650 / rect.height)
+        };
+      }
+
+      updateHint(text) {
+        const pill = document.getElementById('hint-pill');
+        pill.innerHTML = text;
+      }
+
+      loadLevel(index) {
+        this.currentLevelIndex = index;
+        this.level = LEVELS[index];
+        this.state = 'EDIT';
+        this.attempts = 1;
+        this.bounceCount = 0;
+        this.selectedItem = null;
+        this.activeTool = null;
+        this.hideInspector();
+
+        this.placedItems = [];
+        this.resetOrbToSpawn();
+
+        document.getElementById('level-display').textContent = `LVL 0${this.level.id + 1}: ${this.level.name.toUpperCase()}`;
+        this.updateStatusBadge('EDIT MODE', 'status-edit');
+        this.updateToolboxBadges();
+        this.updateLevelSelectActive();
+        this.updateHint(`Level Loaded: <b>${this.level.name}</b>. Select items from dock to place.`);
+
+        document.getElementById('modal-victory').classList.remove('active');
+        document.getElementById('modal-levels').classList.remove('active');
+      }
+
+      resetOrbToSpawn() {
+        const sp = this.level.spawn;
+        const rad = (sp.angle * Math.PI) / 180;
+        this.orb.x = sp.x + Math.cos(rad) * 20;
+        this.orb.y = sp.y + Math.sin(rad) * 20;
+        this.orb.vx = Math.cos(rad) * sp.speed;
+        this.orb.vy = Math.sin(rad) * sp.speed;
+        this.orb.trail = [];
+        this.orb.active = true;
+        this.orb.portalCooldown = 0;
+        this.bounceCount = 0;
+      }
+
+      launchSimulation() {
+        if (this.state === 'RUNNING') return;
+        sound.init();
+        sound.playLaunch();
+        this.resetOrbToSpawn();
+        this.state = 'RUNNING';
+        this.startTime = performance.now();
+        this.updateStatusBadge('SIMULATION RUNNING', 'status-running');
+        this.deselectItem();
+        this.hideInspector();
+        this.activeTool = null;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        this.updateHint('Orb launched! Press <b>Space</b> or <b>Reset</b> to re-adjust items.');
+      }
+
+      resetSimulation() {
+        sound.playClick();
+        this.state = 'EDIT';
+        this.resetOrbToSpawn();
+        this.updateStatusBadge('EDIT MODE', 'status-edit');
+        this.updateHint('Simulation reset. Adjust items, then press <b>▶ Launch</b>.');
+      }
+
+      updateStatusBadge(text, className) {
+        const badge = document.getElementById('status-display');
+        badge.textContent = text;
+        badge.className = `status-badge ${className}`;
+      }
+
+      getInventoryUsage() {
+        const counts = { bouncer: 0, gravity: 0, portal: 0 };
+        for (const item of this.placedItems) {
+          if (item.type === 'portal') {
+            if (item.portalEnd === 'A') counts.portal++;
+          } else {
+            counts[item.type]++;
+          }
+        }
+        return counts;
+      }
+
+      updateToolboxBadges() {
+        const usage = this.getInventoryUsage();
+        const max = this.level.inventory;
+
+        ['bouncer', 'gravity', 'portal'].forEach((tool) => {
+          const btn = document.getElementById(`tool-${tool}`);
+          const badge = document.getElementById(`badge-${tool}`);
+          const remaining = max[tool] - (usage[tool] || 0);
+
+          badge.textContent = remaining;
+          if (remaining <= 0) {
+            badge.classList.add('zero');
+            btn.classList.add('disabled');
+            if (this.activeTool === tool) {
+              this.activeTool = null;
+              btn.classList.remove('active');
+            }
+          } else {
+            badge.classList.remove('zero');
+            btn.classList.remove('disabled');
+          }
+        });
+      }
+
+      addItem(type, x, y) {
+        sound.playClick();
+        if (type === 'bouncer') {
+          const item = {
+            id: this.nextItemId++,
+            type: 'bouncer',
+            x: Math.max(60, Math.min(940, x)),
+            y: Math.max(60, Math.min(590, y)),
+            angle: -Math.PI / 4,
+            length: 70,
+            thickness: 10
+          };
+          this.placedItems.push(item);
+          this.selectItem(item);
+        } else if (type === 'gravity') {
+          const item = {
+            id: this.nextItemId++,
+            type: 'gravity',
+            x: Math.max(60, Math.min(940, x)),
+            y: Math.max(60, Math.min(590, y)),
+            radius: 20,
+            fieldRadius: 110,
+            mode: 'attract'
+          };
+          this.placedItems.push(item);
+          this.selectItem(item);
+        } else if (type === 'portal') {
+          const pairId = this.nextItemId++;
+          const portalA = {
+            id: this.nextItemId++,
+            type: 'portal',
+            portalEnd: 'A',
+            pairId,
+            x: Math.max(60, Math.min(450, x)),
+            y: Math.max(60, Math.min(590, y)),
+            angle: 0,
+            radius: 22
+          };
+          const portalB = {
+            id: this.nextItemId++,
+            type: 'portal',
+            portalEnd: 'B',
+            pairId,
+            x: Math.max(550, Math.min(940, x + 150)),
+            y: Math.max(60, Math.min(590, y)),
+            angle: Math.PI,
+            radius: 22
+          };
+          this.placedItems.push(portalA, portalB);
+          this.selectItem(portalA);
+        }
+
+        this.updateToolboxBadges();
+      }
+
+      deleteSelectedItem() {
+        if (!this.selectedItem) return;
+        sound.playClick();
+        const item = this.selectedItem;
+        if (item.type === 'portal') {
+          this.placedItems = this.placedItems.filter(p => p.pairId !== item.pairId);
+        } else {
+          this.placedItems = this.placedItems.filter(p => p.id !== item.id);
+        }
+        this.deselectItem();
+        this.updateToolboxBadges();
+        this.updateHint('Element removed and returned to inventory.');
+      }
+
+      selectItem(item) {
+        this.selectedItem = item;
+        this.showInspector(item);
+      }
+
+      deselectItem() {
+        this.selectedItem = null;
+        this.hideInspector();
+      }
+
+      showInspector(item) {
+        const inspector = document.getElementById('inspector-overlay');
+        const nameEl = document.getElementById('inspect-name');
+        const modeRow = document.getElementById('inspect-mode-row');
+        const toggleBtn = document.getElementById('inspect-toggle-mode');
+
+        inspector.classList.add('show');
+        if (item.type === 'bouncer') {
+          nameEl.textContent = 'BOUNCER CONFIG';
+          modeRow.style.display = 'none';
+        } else if (item.type === 'gravity') {
+          nameEl.textContent = 'GRAVITY WELL';
+          modeRow.style.display = 'flex';
+          toggleBtn.textContent = item.mode === 'attract' ? 'Attract (Pull)' : 'Repel (Push)';
+          toggleBtn.style.color = item.mode === 'attract' ? 'var(--cyan)' : 'var(--amber)';
+        } else if (item.type === 'portal') {
+          nameEl.textContent = `PORTAL [${item.portalEnd}]`;
+          modeRow.style.display = 'none';
+        }
+      }
+
+      hideInspector() {
+        document.getElementById('inspector-overlay').classList.remove('show');
+      }
+
+      rotateSelectedItem(deltaAngle) {
+        if (!this.selectedItem) return;
+        this.selectedItem.angle = (this.selectedItem.angle || 0) + deltaAngle;
+      }
+
+      toggleGravityMode() {
+        if (!this.selectedItem || this.selectedItem.type !== 'gravity') return;
+        this.selectedItem.mode = this.selectedItem.mode === 'attract' ? 'repel' : 'attract';
+        this.showInspector(this.selectedItem);
+      }
+
+      clearAllItems() {
+        if (this.placedItems.length === 0) return;
+        sound.playClick();
+        this.placedItems = [];
+        this.deselectItem();
+        this.updateToolboxBadges();
+        this.updateHint('All elements recalled to inventory.');
+      }
+
+      initDOM() {
+        // Launch & Reset buttons
+        document.getElementById('btn-launch').addEventListener('click', () => {
+          if (this.state === 'RUNNING') {
+            this.resetSimulation();
+          } else {
+            this.launchSimulation();
+          }
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+          this.resetSimulation();
+        });
+
+        // Clear All
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+          this.clearAllItems();
+        });
+
+        // Sound toggle
+        const sndBtn = document.getElementById('btn-sound');
+        sndBtn.addEventListener('click', () => {
+          const isMuted = sound.toggleMute();
+          sndBtn.textContent = isMuted ? '🔇' : '🔊';
+        });
+
+        // Help Modal
+        const helpModal = document.getElementById('modal-help');
+        document.getElementById('btn-help').addEventListener('click', () => {
+          helpModal.classList.add('active');
+        });
+        document.getElementById('btn-close-help').addEventListener('click', () => {
+          helpModal.classList.remove('active');
+        });
+
+        // Levels Modal
+        const levelsModal = document.getElementById('modal-levels');
+        document.getElementById('btn-levels').addEventListener('click', () => {
+          levelsModal.classList.add('active');
+        });
+        document.getElementById('btn-close-levels').addEventListener('click', () => {
+          levelsModal.classList.remove('active');
+        });
+
+        // Level Select Cards
+        document.querySelectorAll('.level-card').forEach(card => {
+          card.addEventListener('click', () => {
+            const idx = parseInt(card.dataset.lvl);
+            this.loadLevel(idx);
+          });
+        });
+
+        // Victory Modal Buttons
+        document.getElementById('btn-victory-replay').addEventListener('click', () => {
+          document.getElementById('modal-victory').classList.remove('active');
+          this.resetSimulation();
+        });
+
+        document.getElementById('btn-victory-next').addEventListener('click', () => {
+          document.getElementById('modal-victory').classList.remove('active');
+          const nextLvl = (this.currentLevelIndex + 1) % LEVELS.length;
+          this.loadLevel(nextLvl);
+        });
+
+        // Inspector Controls
+        document.getElementById('inspect-close').addEventListener('click', () => {
+          this.deselectItem();
+        });
+        document.getElementById('inspect-rot-cw').addEventListener('click', () => {
+          this.rotateSelectedItem(Math.PI / 12);
+        });
+        document.getElementById('inspect-rot-ccw').addEventListener('click', () => {
+          this.rotateSelectedItem(-Math.PI / 12);
+        });
+        document.getElementById('inspect-toggle-mode').addEventListener('click', () => {
+          this.toggleGravityMode();
+        });
+        document.getElementById('inspect-remove').addEventListener('click', () => {
+          this.deleteSelectedItem();
+        });
+
+        // Tool Selection Toggle
+        ['bouncer', 'gravity', 'portal'].forEach(tool => {
+          const btn = document.getElementById(`tool-${tool}`);
+          btn.addEventListener('click', () => {
+            const max = this.level.inventory[tool];
+            const used = this.getInventoryUsage()[tool] || 0;
+            if (used >= max) return;
+
+            if (this.activeTool === tool) {
+              this.activeTool = null;
+              btn.classList.remove('active');
+              this.updateHint('Select and place items from toolbox. Drag or rotate to guide the orb.');
+            } else {
+              document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+              this.activeTool = tool;
+              btn.classList.add('active');
+              this.deselectItem();
+              this.updateHint(`Placement Mode: <b>Click anywhere on the grid</b> to deploy ${tool.toUpperCase()}.`);
+            }
+          });
+        });
+
+        // Keyboard Controls
+        window.addEventListener('keydown', (e) => {
+          if (e.key === ' ' || e.code === 'Space') {
+            e.preventDefault();
+            if (this.state === 'RUNNING') this.resetSimulation();
+            else this.launchSimulation();
+          } else if (e.key === 'r' || e.key === 'R') {
+            if (this.selectedItem && this.state !== 'RUNNING') {
+              this.rotateSelectedItem(Math.PI / 8);
+            } else {
+              this.resetSimulation();
+            }
+          } else if (e.key === 'Delete' || e.key === 'Backspace') {
+            if (this.selectedItem && this.state !== 'RUNNING') {
+              this.deleteSelectedItem();
+            }
+          } else if (e.key === 'm' || e.key === 'M') {
+            sndBtn.click();
+          } else if (e.key === 'Escape') {
+            this.activeTool = null;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            this.deselectItem();
+            document.getElementById('modal-help').classList.remove('active');
+            document.getElementById('modal-levels').classList.remove('active');
+          } else if (e.key === '1') {
+            document.getElementById('tool-bouncer').click();
+          } else if (e.key === '2') {
+            document.getElementById('tool-gravity').click();
+          } else if (e.key === '3') {
+            document.getElementById('tool-portal').click();
+          }
+        });
+
+        this.initCanvasPointerEvents();
+      }
+
+      updateLevelSelectActive() {
+        document.querySelectorAll('.level-card').forEach((card, idx) => {
+          if (idx === this.currentLevelIndex) card.classList.add('active');
+          else card.classList.remove('active');
+        });
+      }
+
+      initCanvasPointerEvents() {
+        const handleDown = (pos) => {
+          if (this.state === 'RUNNING') return;
+
+          // 1. If in placement mode from toolbox, place item at pos!
+          if (this.activeTool) {
+            const toolToPlace = this.activeTool;
+            this.addItem(toolToPlace, pos.x, pos.y);
+
+            // Check remaining
+            const usage = this.getInventoryUsage()[toolToPlace] || 0;
+            const max = this.level.inventory[toolToPlace];
+            if (usage >= max) {
+              this.activeTool = null;
+              document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+              this.updateHint('Item deployed! Drag to reposition or use the dial/wheel to rotate.');
+            } else {
+              this.updateHint(`Item deployed! Click grid to deploy another, or select an item to adjust.`);
+            }
+            return;
+          }
+
+          // 2. Check if clicked on rotation handle of selected item
+          if (this.selectedItem) {
+            const rotHandlePos = this.getRotationHandlePos(this.selectedItem);
+            if (Vec.dist(pos, rotHandlePos) < 18) {
+              this.isRotating = true;
+              return;
+            }
+          }
+
+          // 3. Check item hit
+          const hit = this.findItemAt(pos);
+          if (hit) {
+            this.selectItem(hit);
+            this.isDragging = true;
+            this.dragOffset = { x: hit.x - pos.x, y: hit.y - pos.y };
+            this.updateHint('Dragging item. Release to position, or rotate with dial/wheel.');
+          } else {
+            this.deselectItem();
+            this.updateHint('Select an item from the dock or click on placed pieces to edit.');
+          }
+        };
+
+        const handleMove = (pos) => {
+          this.pointerPos = pos;
+          if (this.state === 'RUNNING') return;
+
+          if (this.isRotating && this.selectedItem) {
+            const item = this.selectedItem;
+            item.angle = Math.atan2(pos.y - item.y, pos.x - item.x);
+          } else if (this.isDragging && this.selectedItem) {
+            this.selectedItem.x = Math.max(30, Math.min(970, pos.x + this.dragOffset.x));
+            this.selectedItem.y = Math.max(30, Math.min(620, pos.y + this.dragOffset.y));
+          } else {
+            this.hoveredItem = this.findItemAt(pos);
+            this.canvas.style.cursor = this.activeTool ? 'crosshair' : (this.hoveredItem ? 'move' : 'default');
+          }
+        };
+
+        const handleUp = () => {
+          this.isDragging = false;
+          this.isRotating = false;
+        };
+
+        this.canvas.addEventListener('mousedown', (e) => handleDown(this.getCanvasCoordinates(e)));
+        window.addEventListener('mousemove', (e) => handleMove(this.getCanvasCoordinates(e)));
+        window.addEventListener('mouseup', handleUp);
+
+        // Mouse Wheel to rotate selected item smoothly
+        this.canvas.addEventListener('wheel', (e) => {
+          if (this.selectedItem && this.state !== 'RUNNING') {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? (Math.PI / 16) : (-Math.PI / 16);
+            this.rotateSelectedItem(delta);
+          }
+        }, { passive: false });
+
+        // Touch support
+        this.canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          handleDown(this.getCanvasCoordinates(e));
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+          if (this.isDragging || this.isRotating) {
+            e.preventDefault();
+            handleMove(this.getCanvasCoordinates(e));
+          }
+        }, { passive: false });
+
+        window.addEventListener('touchend', handleUp);
+      }
+
+      getRotationHandlePos(item) {
+        const dist = item.type === 'bouncer' ? 44 : 36;
+        const angle = item.angle || 0;
+        return {
+          x: item.x + Math.cos(angle) * dist,
+          y: item.y + Math.sin(angle) * dist
+        };
+      }
+
+      findItemAt(pos) {
+        for (let i = this.placedItems.length - 1; i >= 0; i--) {
+          const item = this.placedItems[i];
+          if (item.type === 'bouncer') {
+            const halfLen = item.length / 2;
+            const cos = Math.cos(item.angle);
+            const sin = Math.sin(item.angle);
+            const p1 = { x: item.x - cos * halfLen, y: item.y - sin * halfLen };
+            const p2 = { x: item.x + cos * halfLen, y: item.y + sin * halfLen };
+            const d = this.distToSegment(pos, p1, p2);
+            if (d < item.thickness + 12) return item;
+          } else if (item.type === 'gravity') {
+            if (Vec.dist(pos, item) < item.radius + 12) return item;
+          } else if (item.type === 'portal') {
+            if (Vec.dist(pos, item) < item.radius + 10) return item;
+          }
+        }
+        return null;
+      }
+
+      distToSegment(p, v, w) {
+        const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+        if (l2 === 0) return Vec.dist(p, v);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return Vec.dist(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+      }
+
+      // --- Physics Simulation Loop ---
+      updatePhysics() {
+        if (this.state !== 'RUNNING' || !this.orb.active) return;
+
+        // Decrease frame cooldown outside substeps
+        if (this.orb.portalCooldown > 0) {
+          this.orb.portalCooldown--;
+        }
+
+        const steps = 6;
+        const dt = 1 / steps;
+
+        for (let step = 0; step < steps; step++) {
+          if (!this.orb.active) break;
+
+          // Gravity
+          this.orb.vy += this.gravity * dt;
+
+          // Gravity Wells
+          for (const item of this.placedItems) {
+            if (item.type === 'gravity') {
+              const d = Vec.dist(this.orb, item);
+              if (d < item.fieldRadius && d > 8) {
+                const forceMag = (item.mode === 'attract' ? 42 : -42) / (d + 20);
+                const dir = Vec.norm({ x: item.x - this.orb.x, y: item.y - this.orb.y });
+                this.orb.vx += dir.x * forceMag * dt;
+                this.orb.vy += dir.y * forceMag * dt;
+                if (Math.random() < 0.1) sound.playGravityHum();
+              }
+            }
+          }
+
+          // Advance Position
+          this.orb.x += this.orb.vx * dt;
+          this.orb.y += this.orb.vy * dt;
+
+          // Check Collisions
+          this.resolveCollisions();
+        }
+
+        // Clamp Max Velocity
+        const currentSpeed = Vec.len({ x: this.orb.vx, y: this.orb.vy });
+        if (currentSpeed > 22) {
+          this.orb.vx = (this.orb.vx / currentSpeed) * 22;
+          this.orb.vy = (this.orb.vy / currentSpeed) * 22;
+        }
+
+        // Record Trail
+        this.orb.trail.push({ x: this.orb.x, y: this.orb.y, alpha: 1.0 });
+        if (this.orb.trail.length > 28) this.orb.trail.shift();
+
+        // Trail sparkle particles
+        if (Math.random() < 0.45) {
+          this.particles.spawn(
+            this.orb.x + (Math.random() - 0.5) * 4,
+            this.orb.y + (Math.random() - 0.5) * 4,
+            -this.orb.vx * 0.15 + (Math.random() - 0.5),
+            -this.orb.vy * 0.15 + (Math.random() - 0.5),
+            '#00f0ff',
+            Math.random() * 2.5 + 1,
+            0.3,
+            1 / (0.3 * 60)
+          );
+        }
+      }
+
+      resolveCollisions() {
+        const orb = this.orb;
+
+        // 1. Target Portal (Victory)
+        const target = this.level.target;
+        if (Vec.dist(orb, target) < target.radius + this.orbRadius) {
+          this.handleVictory();
+          return;
+        }
+
+        // 2. Static Hazards (Spikes)
+        for (const hz of this.level.hazards) {
+          if (orb.x + this.orbRadius > hz.x && orb.x - this.orbRadius < hz.x + hz.w &&
+              orb.y + this.orbRadius > hz.y && orb.y - this.orbRadius < hz.y + hz.h) {
+            this.handleHazardHit();
+            return;
+          }
+        }
+
+        // 3. Moving Hazards (Drones)
+        for (const drone of this.level.movingHazards) {
+          const dPos = this.getDronePosition(drone);
+          if (Vec.dist(orb, dPos) < drone.radius + this.orbRadius) {
+            this.handleHazardHit();
+            return;
+          }
+        }
+
+        // 4. Out of bounds check
+        if (orb.x < -30 || orb.x > 1030 || orb.y < -30 || orb.y > 680) {
+          this.handleHazardHit();
+          return;
+        }
+
+        // 5. Static Walls
+        for (const w of this.level.walls) {
+          const closestX = Math.max(w.x, Math.min(orb.x, w.x + w.w));
+          const closestY = Math.max(w.y, Math.min(orb.y, w.y + w.h));
+          const distX = orb.x - closestX;
+          const distY = orb.y - closestY;
+          const distSq = distX * distX + distY * distY;
+
+          if (distSq < this.orbRadius * this.orbRadius) {
+            const dist = Math.sqrt(distSq);
+            let nx = dist > 0 ? distX / dist : 0;
+            let ny = dist > 0 ? distY / dist : -1;
+
+            const pen = this.orbRadius - dist;
+            orb.x += nx * pen;
+            orb.y += ny * pen;
+
+            const dot = orb.vx * nx + orb.vy * ny;
+            if (dot < 0) {
+              const restitution = 0.65;
+              orb.vx -= (1 + restitution) * dot * nx;
+              orb.vy -= (1 + restitution) * dot * ny;
+              this.bounceCount++;
+              sound.playBounce(Vec.len({ x: orb.vx, y: orb.vy }));
+              this.particles.createBurst(closestX, closestY, 6, '#00f0ff', 2.5);
+            }
+          }
+        }
+
+        // 6. Angled Bouncers
+        for (const item of this.placedItems) {
+          if (item.type === 'bouncer') {
+            const halfLen = item.length / 2;
+            const cos = Math.cos(item.angle);
+            const sin = Math.sin(item.angle);
+            const p1 = { x: item.x - cos * halfLen, y: item.y - sin * halfLen };
+            const p2 = { x: item.x + cos * halfLen, y: item.y + sin * halfLen };
+
+            const segVec = Vec.sub(p2, p1);
+            const segLen = Vec.len(segVec);
+            const segUnit = Vec.norm(segVec);
+            const segNorm = { x: -segUnit.y, y: segUnit.x };
+
+            const toOrb = Vec.sub(orb, p1);
+            let proj = Vec.dot(toOrb, segUnit);
+            proj = Math.max(0, Math.min(segLen, proj));
+            const closest = Vec.add(p1, Vec.mult(segUnit, proj));
+
+            const dist = Vec.dist(orb, closest);
+            const minDist = this.orbRadius + item.thickness / 2;
+
+            if (dist < minDist) {
+              let normal = Vec.sub(orb, closest);
+              let nLen = Vec.len(normal);
+              if (nLen === 0) {
+                normal = segNorm;
+                nLen = 1;
+              } else {
+                normal = Vec.mult(normal, 1 / nLen);
+              }
+
+              const pen = minDist - dist;
+              orb.x += normal.x * pen;
+              orb.y += normal.y * pen;
+
+              const dot = orb.vx * normal.x + orb.vy * normal.y;
+              if (dot < 0) {
+                const restitution = 1.35;
+                orb.vx -= (1 + restitution) * dot * normal.x;
+                orb.vy -= (1 + restitution) * dot * normal.y;
+
+                // Extra propulsion normal impulse
+                orb.vx += normal.x * 1.6;
+                orb.vy += normal.y * 1.6;
+
+                this.bounceCount++;
+                sound.playBounce(Vec.len({ x: orb.vx, y: orb.vy }));
+                this.particles.createBurst(closest.x, closest.y, 14, '#00ff88', 4.5);
+              }
+            }
+          }
+        }
+
+        // 7. Quantum Teleporters
+        if (orb.portalCooldown <= 0) {
+          for (const item of this.placedItems) {
+            if (item.type === 'portal') {
+              if (Vec.dist(orb, item) < item.radius + this.orbRadius) {
+                const other = this.placedItems.find(p => p.type === 'portal' && p.pairId === item.pairId && p.id !== item.id);
+                if (other) {
+                  sound.playPortalWarp();
+                  this.particles.createBurst(item.x, item.y, 18, '#a855f7', 4);
+
+                  const inSpeed = Math.max(7.5, Vec.len({ x: orb.vx, y: orb.vy }));
+                  const exitAngle = other.angle;
+                  orb.vx = Math.cos(exitAngle) * inSpeed;
+                  orb.vy = Math.sin(exitAngle) * inSpeed;
+
+                  orb.x = other.x + Math.cos(exitAngle) * (other.radius + this.orbRadius + 6);
+                  orb.y = other.y + Math.sin(exitAngle) * (other.radius + this.orbRadius + 6);
+                  orb.portalCooldown = 35; // 35 full frames cooldown
+
+                  this.particles.createBurst(other.x, other.y, 22, '#00f0ff', 4.5);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      handleHazardHit() {
+        this.orb.active = false;
+        this.state = 'FAILED';
+        this.screenShake = 16;
+        sound.playExplosion();
+        this.particles.createExplosion(this.orb.x, this.orb.y);
+        this.updateStatusBadge('COLLISION HAZARD', 'status-failed');
+        this.updateHint('Collision detected! Resetting simulation in 1s...');
+
+        setTimeout(() => {
+          if (this.state === 'FAILED') {
+            this.attempts++;
+            this.resetSimulation();
+          }
+        }, 1100);
+      }
+
+      handleVictory() {
+        this.orb.active = false;
+        this.state = 'VICTORY';
+        this.runDuration = ((performance.now() - this.startTime) / 1000).toFixed(1);
+        sound.playVictory();
+        this.particles.createVictoryBurst(this.level.target.x, this.level.target.y);
+        this.updateStatusBadge('TARGET REACHED', 'status-running');
+
+        const isLastLevel = this.currentLevelIndex === LEVELS.length - 1;
+        document.getElementById('victory-tag').textContent = isLastLevel ? 'CAMPAIGN MASTERED' : 'SECTOR SYNCHRONIZED';
+        document.getElementById('victory-title').textContent = isLastLevel ? 'ALL PROTOCOLS COMPLETE' : 'TARGET PORTAL REACHED';
+        document.getElementById('victory-desc').textContent = isLastLevel
+          ? 'Exceptional mastery of orbital vector mechanics! All sectors secured.'
+          : 'Orb successfully routed through quantum distortion field!';
+        document.getElementById('btn-victory-next').textContent = isLastLevel ? '↺ Replay From Sector 1' : 'Next Sector ▶';
+
+        document.getElementById('stat-time').textContent = `${this.runDuration}s`;
+        document.getElementById('stat-bounces').textContent = this.bounceCount;
+        document.getElementById('stat-attempts').textContent = this.attempts;
+
+        setTimeout(() => {
+          document.getElementById('modal-victory').classList.add('active');
+        }, 600);
+      }
+
+      getDronePosition(drone) {
+        drone.progress = (drone.progress + drone.speed) % (Math.PI * 2);
+        const t = (Math.sin(drone.progress) + 1) / 2;
+        return {
+          x: drone.p1.x + (drone.p2.x - drone.p1.x) * t,
+          y: drone.p1.y + (drone.p2.y - drone.p1.y) * t
+        };
+      }
+
+      // --- Predictive Trajectory Arc (EDIT Mode with Bouncer Deflection) ---
+      calculateTrajectoryPreview() {
+        if (this.state !== 'EDIT') return [];
+        const points = [];
+        const sp = this.level.spawn;
+        const rad = (sp.angle * Math.PI) / 180;
+        let simX = sp.x + Math.cos(rad) * 20;
+        let simY = sp.y + Math.sin(rad) * 20;
+        let simVx = Math.cos(rad) * sp.speed;
+        let simVy = Math.sin(rad) * sp.speed;
+
+        const maxSteps = 75;
+        const dt = 0.5;
+
+        for (let s = 0; s < maxSteps; s++) {
+          simVy += this.gravity * dt;
+
+          // Wells in preview
+          for (const item of this.placedItems) {
+            if (item.type === 'gravity') {
+              const d = Math.hypot(simX - item.x, simY - item.y);
+              if (d < item.fieldRadius && d > 8) {
+                const forceMag = (item.mode === 'attract' ? 42 : -42) / (d + 20);
+                simVx += ((item.x - simX) / d) * forceMag * dt;
+                simVy += ((item.y - simY) / d) * forceMag * dt;
+              }
+            }
+          }
+
+          simX += simVx * dt;
+          simY += simVy * dt;
+
+          points.push({ x: simX, y: simY });
+
+          // Check wall stop
+          let hit = false;
+          for (const w of this.level.walls) {
+            if (simX > w.x && simX < w.x + w.w && simY > w.y && simY < w.y + w.h) {
+              hit = true;
+              break;
+            }
+          }
+          if (hit) break;
+
+          // Check bouncer reflection in preview
+          for (const item of this.placedItems) {
+            if (item.type === 'bouncer') {
+              const halfLen = item.length / 2;
+              const cos = Math.cos(item.angle);
+              const sin = Math.sin(item.angle);
+              const p1 = { x: item.x - cos * halfLen, y: item.y - sin * halfLen };
+              const p2 = { x: item.x + cos * halfLen, y: item.y + sin * halfLen };
+              const segVec = Vec.sub(p2, p1);
+              const segLen = Vec.len(segVec);
+              const segUnit = Vec.norm(segVec);
+              const toOrb = Vec.sub({ x: simX, y: simY }, p1);
+              let proj = Math.max(0, Math.min(segLen, Vec.dot(toOrb, segUnit)));
+              const closest = Vec.add(p1, Vec.mult(segUnit, proj));
+              const dist = Vec.dist({ x: simX, y: simY }, closest);
+              if (dist < this.orbRadius + item.thickness / 2) {
+                let normal = Vec.sub({ x: simX, y: simY }, closest);
+                let nLen = Vec.len(normal);
+                if (nLen > 0) {
+                  normal = Vec.mult(normal, 1 / nLen);
+                  const dot = simVx * normal.x + simVy * normal.y;
+                  if (dot < 0) {
+                    simVx -= (1 + 1.35) * dot * normal.x;
+                    simVy -= (1 + 1.35) * dot * normal.y;
+                  }
+                }
+              }
+            }
+          }
+        }
+        return points;
+      }
+
+      // --- Rendering Routine ---
+      draw() {
+        const ctx = this.ctx;
+        ctx.save();
+
+        if (this.screenShake > 0) {
+          const shakeX = (Math.random() - 0.5) * this.screenShake;
+          const shakeY = (Math.random() - 0.5) * this.screenShake;
+          ctx.translate(shakeX, shakeY);
+          this.screenShake *= 0.88;
+          if (this.screenShake < 0.2) this.screenShake = 0;
+        }
+
+        // 1. Cyber Grid Background
+        ctx.fillStyle = '#060914';
+        ctx.fillRect(0, 0, 1000, 650);
+
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+        ctx.lineWidth = 1;
+        const gridSize = 40;
+        ctx.beginPath();
+        for (let x = 0; x <= 1000; x += gridSize) {
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, 650);
+        }
+        for (let y = 0; y <= 650; y += gridSize) {
+          ctx.moveTo(0, y);
+          ctx.lineTo(1000, y);
+        }
+        ctx.stroke();
+
+        // 2. Trajectory Preview in EDIT mode
+        if (this.state === 'EDIT') {
+          const previewPoints = this.calculateTrajectoryPreview();
+          if (previewPoints.length > 1) {
+            ctx.save();
+            ctx.setLineDash([4, 6]);
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(previewPoints[0].x, previewPoints[0].y);
+            for (let i = 1; i < previewPoints.length; i++) {
+              ctx.lineTo(previewPoints[i].x, previewPoints[i].y);
+            }
+            ctx.stroke();
+
+            for (let i = 0; i < previewPoints.length; i += 4) {
+              ctx.fillStyle = '#00f0ff';
+              ctx.beginPath();
+              ctx.arc(previewPoints[i].x, previewPoints[i].y, 2.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        }
+
+        // 3. Static Walls
+        for (const w of this.level.walls) {
+          ctx.save();
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(w.x, w.y, w.w, w.h);
+
+          ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(w.x + 0.5, w.y + 0.5, w.w - 1, w.h - 1);
+
+          ctx.fillStyle = '#00f0ff';
+          ctx.fillRect(w.x + 2, w.y + 2, 2, 2);
+          ctx.fillRect(w.x + w.w - 4, w.y + 2, 2, 2);
+          ctx.fillRect(w.x + 2, w.y + w.h - 4, 2, 2);
+          ctx.fillRect(w.x + w.w - 4, w.y + w.h - 4, 2, 2);
+          ctx.restore();
+        }
+
+        // 4. Hazards (Spikes)
+        for (const hz of this.level.hazards) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 42, 85, 0.2)';
+          ctx.fillRect(hz.x, hz.y, hz.w, hz.h);
+
+          ctx.fillStyle = '#ff2a55';
+          ctx.shadowColor = '#ff2a55';
+          ctx.shadowBlur = 10;
+          ctx.beginPath();
+          const spikeCount = Math.floor(hz.w / 16);
+          const spikeW = hz.w / spikeCount;
+          for (let i = 0; i < spikeCount; i++) {
+            const sx = hz.x + i * spikeW;
+            ctx.moveTo(sx, hz.y + hz.h);
+            ctx.lineTo(sx + spikeW / 2, hz.y);
+            ctx.lineTo(sx + spikeW, hz.y + hz.h);
+          }
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 5. Moving Hazards (Drones)
+        for (const drone of this.level.movingHazards) {
+          const pos = this.getDronePosition(drone);
+          ctx.save();
+          ctx.setLineDash([2, 4]);
+          ctx.strokeStyle = 'rgba(255, 42, 85, 0.25)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(drone.p1.x, drone.p1.y);
+          ctx.lineTo(drone.p2.x, drone.p2.y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = '#1e1124';
+          ctx.strokeStyle = '#ff0055';
+          ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#ff0055';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, drone.radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          const rot = performance.now() * 0.005;
+          ctx.strokeStyle = '#ffb700';
+          ctx.lineWidth = 2;
+          for (let i = 0; i < 4; i++) {
+            const a = rot + (i * Math.PI) / 2;
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+            ctx.lineTo(pos.x + Math.cos(a) * (drone.radius + 6), pos.y + Math.sin(a) * (drone.radius + 6));
+            ctx.stroke();
+          }
+
+          ctx.fillStyle = '#fff';
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 6. Spawn Cannon
+        const sp = this.level.spawn;
+        const rad = (sp.angle * Math.PI) / 180;
+        ctx.save();
+        ctx.translate(sp.x, sp.y);
+        ctx.rotate(rad);
+
+        ctx.fillStyle = '#1e293b';
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.fillRect(0, -9, 28, 18);
+        ctx.strokeRect(0, -9, 28, 18);
+
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(6, -6, 4, 12);
+        ctx.fillRect(16, -6, 4, 12);
+
+        ctx.rotate(-rad);
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // 7. Target Portal
+        const tg = this.level.target;
+        const time = performance.now() * 0.003;
+        ctx.save();
+        ctx.translate(tg.x, tg.y);
+
+        const pulse = Math.sin(time * 3) * 3;
+        const gradient = ctx.createRadialGradient(0, 0, 4, 0, 0, tg.radius + pulse);
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(0.3, '#00f0ff');
+        gradient.addColorStop(0.7, '#ff007f');
+        gradient.addColorStop(1, 'transparent');
+
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(0, 0, tg.radius + pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 1.8;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+        for (let i = 0; i < 3; i++) {
+          const ang = time * 2 + (i * Math.PI * 2) / 3;
+          const mx = Math.cos(ang) * (tg.radius + 8);
+          const my = Math.sin(ang) * (tg.radius + 8);
+          ctx.beginPath();
+          ctx.arc(mx, my, 3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        // 7b. Entangled Portal Pair Link Visual
+        const portals = this.placedItems.filter(p => p.type === 'portal');
+        if (portals.length >= 2) {
+          const pA = portals.find(p => p.portalEnd === 'A');
+          const pB = portals.find(p => p.portalEnd === 'B');
+          if (pA && pB) {
+            ctx.save();
+            ctx.setLineDash([4, 6]);
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(pA.x, pA.y);
+            ctx.quadraticCurveTo((pA.x + pB.x) / 2, Math.min(pA.y, pB.y) - 40, pB.x, pB.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // 8. Placed Interactive Elements
+        for (const item of this.placedItems) {
+          ctx.save();
+          const isSelected = this.selectedItem === item;
+
+          if (item.type === 'bouncer') {
+            ctx.translate(item.x, item.y);
+            ctx.rotate(item.angle);
+
+            const halfLen = item.length / 2;
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = isSelected ? '#ffffff' : '#00ff88';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = '#00ff88';
+            ctx.shadowBlur = isSelected ? 16 : 8;
+
+            ctx.fillRect(-halfLen, -item.thickness / 2, item.length, item.thickness);
+            ctx.strokeRect(-halfLen, -item.thickness / 2, item.length, item.thickness);
+
+            ctx.fillStyle = '#00ff88';
+            for (let i = -1; i <= 1; i++) {
+              const cx = i * 18;
+              ctx.beginPath();
+              ctx.moveTo(cx - 4, 2);
+              ctx.lineTo(cx, -3);
+              ctx.lineTo(cx + 4, 2);
+              ctx.fill();
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+          } else if (item.type === 'gravity') {
+            ctx.translate(item.x, item.y);
+
+            const isAttract = item.mode === 'attract';
+            const fColor = isAttract ? 'rgba(0, 240, 255,' : 'rgba(255, 183, 0,';
+            ctx.strokeStyle = `${fColor} 0.3)`;
+            ctx.setLineDash([4, 6]);
+            ctx.beginPath();
+            ctx.arc(0, 0, item.fieldRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            const rot = performance.now() * (isAttract ? 0.002 : -0.002);
+            for (let r = 1; r <= 3; r++) {
+              ctx.strokeStyle = `${fColor} ${0.15 * r})`;
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.arc(0, 0, (item.fieldRadius / 3) * r, rot * r, rot * r + Math.PI * 1.4);
+              ctx.stroke();
+            }
+
+            ctx.fillStyle = isAttract ? '#0d1d36' : '#331c0a';
+            ctx.strokeStyle = isAttract ? '#00f0ff' : '#ffb700';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 12;
+            ctx.beginPath();
+            ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px Consolas';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(isAttract ? '⤹' : '⤸', 0, 0);
+
+          } else if (item.type === 'portal') {
+            ctx.translate(item.x, item.y);
+            ctx.rotate(item.angle);
+
+            const pColor = item.portalEnd === 'A' ? '#00f0ff' : '#ff007f';
+            ctx.fillStyle = 'rgba(10, 15, 30, 0.8)';
+            ctx.strokeStyle = pColor;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = pColor;
+            ctx.shadowBlur = 12;
+
+            ctx.beginPath();
+            ctx.ellipse(0, 0, item.radius, item.radius * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(item.radius, 0);
+            ctx.lineTo(item.radius + 12, 0);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 11px Consolas';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(item.portalEnd, 0, 0);
+          }
+
+          // Selection Gizmo & Rotation Dial
+          if (isSelected) {
+            ctx.restore();
+            ctx.save();
+            const rotPos = this.getRotationHandlePos(item);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.setLineDash([3, 4]);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(item.x, item.y, item.type === 'bouncer' ? 44 : 36, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Rotation Handle Knob
+            ctx.fillStyle = '#00f0ff';
+            ctx.shadowColor = '#00f0ff';
+            ctx.shadowBlur = 8;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.arc(rotPos.x, rotPos.y, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Angle display badge
+            const deg = Math.round(((item.angle || 0) * 180) / Math.PI) % 360;
+            ctx.fillStyle = 'rgba(11, 16, 33, 0.85)';
+            ctx.fillRect(item.x - 24, item.y + (item.type === 'bouncer' ? 48 : 40), 48, 16);
+            ctx.fillStyle = '#00f0ff';
+            ctx.font = '9px Consolas';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${deg}°`, item.x, item.y + (item.type === 'bouncer' ? 60 : 52));
+          }
+
+          ctx.restore();
+        }
+
+        // 9. Orb & Trails
+        if (this.orb.active) {
+          if (this.orb.trail.length > 1) {
+            ctx.save();
+            for (let i = 0; i < this.orb.trail.length - 1; i++) {
+              const p1 = this.orb.trail[i];
+              const p2 = this.orb.trail[i + 1];
+              const progress = i / this.orb.trail.length;
+              ctx.strokeStyle = `rgba(0, 240, 255, ${progress * 0.7})`;
+              ctx.lineWidth = progress * (this.orbRadius * 1.5);
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.stroke();
+            }
+            ctx.restore();
+          }
+
+          ctx.save();
+          ctx.translate(this.orb.x, this.orb.y);
+
+          const orbGrad = ctx.createRadialGradient(0, 0, 2, 0, 0, this.orbRadius * 1.8);
+          orbGrad.addColorStop(0, '#ffffff');
+          orbGrad.addColorStop(0.4, '#00f0ff');
+          orbGrad.addColorStop(1, 'transparent');
+
+          ctx.fillStyle = orbGrad;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.orbRadius * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.orbRadius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 10. Particles
+        this.particles.draw(ctx);
+
+        ctx.restore();
+      }
+
+      startLoop() {
+        const loop = () => {
+          this.updatePhysics();
+          this.particles.update();
+          this.draw();
+          requestAnimationFrame(loop);
+        };
+        requestAnimationFrame(loop);
+      }
+    }
+
+    // Initialize Game on Window Load
+    window.addEventListener('DOMContentLoaded', () => {
+      window.cyberGame = new Game();
+    });
+  </script>
+</body>
+</html>
